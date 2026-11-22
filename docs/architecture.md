@@ -6,16 +6,17 @@ Sections marked **(planned)** describe what later steps build. Update them when 
 
 ## Stack
 
-| Layer      | Choice                                                                                 |
-| ---------- | -------------------------------------------------------------------------------------- |
-| Framework  | Next.js 16 (App Router, Server Actions), React 19, TypeScript                          |
-| Styling    | Tailwind v4 + daisyUI 5, one dark theme (`c2x2-dark`)                                  |
-| Database   | Neon Postgres via `@neondatabase/serverless`, Drizzle ORM + drizzle-kit (planned, P04) |
-| Validation | Zod (planned, from the first step that needs it)                                       |
-| Tests      | Vitest, for `src/core/`                                                                |
-| Hosting    | Vercel Hobby; preview deploy per PR                                                    |
-| Domain     | `matchmaking.commander2x2.org` (Cloudflare DNS, CNAME to Vercel, DNS only)             |
-| Tooling    | pnpm, ESLint, Prettier, markdownlint, GitHub Actions CI, Renovate                      |
+| Layer      | Choice                                                                                                                                          |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework  | Next.js 16 (App Router, Server Actions), React 19, TypeScript                                                                                   |
+| Styling    | Tailwind v4 + daisyUI 5, one dark theme (`c2x2-dark`)                                                                                           |
+| Database   | Neon Postgres via `@neondatabase/serverless`, Drizzle ORM + drizzle-kit (planned, P04)                                                          |
+| Validation | Zod (planned, from the first step that needs it)                                                                                                |
+| Tests      | Vitest, for `src/core/`                                                                                                                         |
+| Hosting    | Vercel Hobby; preview deploy per PR                                                                                                             |
+| Domain     | `matchmaking.commander2x2.org` (Cloudflare DNS, CNAME to Vercel, DNS only)                                                                      |
+| Tooling    | pnpm, ESLint, Prettier, markdownlint, GitHub Actions CI, Renovate                                                                               |
+| Security   | gitleaks, `pnpm audit`, osv-scanner (vulnerabilities + malware) in CI and weekly; pnpm supply-chain settings; see [SECURITY.md](../SECURITY.md) |
 
 ## Environment variables
 

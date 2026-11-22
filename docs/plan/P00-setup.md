@@ -21,6 +21,7 @@ Nothing.
 - A placeholder home page in pt-BR.
 - Tooling: ESLint (+ Prettier config), Prettier, markdownlint, Vitest, `pnpm check`, GitHub Actions CI, Renovate, `.nvmrc`, `.env.example`.
 - Docs: `README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, `docs/rules.md`, `docs/architecture.md`, `docs/plan/` (status table, state machine, P00–P11 specs).
+- Security baseline: `security.yml` workflow (gitleaks, `pnpm audit`, osv-scanner; on push, PR and weekly), pnpm supply-chain settings in `pnpm-workspace.yaml`, `pnpm security` script, `SECURITY.md`, PR template, agent guardrails (`AGENTS.md` → Security, `.claude/settings.json` deny/ask rules).
 
 ### Out
 
@@ -34,6 +35,7 @@ Nothing.
 ## Acceptance checks
 
 - `pnpm check` passes locally and in CI.
+- `pnpm security` reports nothing locally; the `Security` workflow is green.
 - `pnpm dev`: `/` renders dark, in pt-BR, with no light-mode styles.
 - Every step file P01–P11 exists and follows the template.
 
@@ -45,3 +47,4 @@ Nothing.
 ## Log
 
 - 2026-11-22: Repo created and scaffolded; tooling, CI and docs written. Status → review.
+- 2026-11-22: Added the security baseline. Lockfile regenerated under the 3-day release age (daisyUI resolves to 5.8.1). Overrides for `minimatch` and `katex` (same as the site) clear `pnpm audit` and osv-scanner. One reviewed `trustPolicyExclude`: `eslint-import-resolver-typescript@3.10.1` (dev-only, via `eslint-config-next`).

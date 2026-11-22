@@ -56,7 +56,7 @@ todo ──► in_progress ──► review ──► done
 1. Check this table: the step is `todo` (or `blocked` with the blocker resolved) and its dependencies are `done`.
 2. Read [AGENTS.md](../../AGENTS.md), the step file, and everything under its **Read first**.
 3. Build only what is in **Scope → In**. Put anything else in the **Log** as a follow-up.
-4. Run every **Acceptance check**. Fix until they pass.
+4. Run every **Acceptance check**. Fix until they pass. If you changed dependencies, `pnpm security` must report nothing.
 5. Append a dated line to the step's **Log**: what you did, decisions you made, follow-ups.
 6. Set the status to `review` in this table, in the same PR as the code.
 

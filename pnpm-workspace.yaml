@@ -1,3 +1,38 @@
+# Supply-chain guardrails. Don't loosen these without the organizer's approval
+# (see "Security" in AGENTS.md).
+
+# Lifecycle scripts (postinstall etc.) are blocked by default. A package only
+# runs its install scripts if it is listed here with `true`.
 allowBuilds:
   sharp: false
   unrs-resolver: false
+
+# Fail the install when a dependency wants to run build scripts that aren't
+# listed in allowBuilds, instead of silently skipping them.
+strictDepBuilds: true
+
+# Don't install versions published less than 3 days ago (in minutes). Most
+# malicious releases are caught and pulled within that window.
+minimumReleaseAge: 4320
+
+# Refuse a version whose publishing trust (provenance / trusted publisher) is
+# weaker than an earlier version of the same package.
+trustPolicy: no-downgrade
+
+# Reviewed exceptions to trustPolicy, pinned to exact versions. Each needs a
+# reason. eslint-import-resolver-typescript 3.10.1: dev-only, pulled in by
+# eslint-config-next 16.4.6; it was published without the provenance that some
+# earlier versions had. Remove when eslint-config-next moves past it.
+trustPolicyExclude:
+  - eslint-import-resolver-typescript@3.10.1
+
+# Transitive dependencies may only come from the registry, never from git
+# URLs or tarballs.
+blockExoticSubdeps: true
+
+# Security overrides for vulnerable transitive deps whose parents still pin an
+# affected range (same pins as commander2x2.org). Drop each one once upstream
+# ships a fixed range.
+overrides:
+  "minimatch@>=7.0.0 <11.0.1": "11.0.4"
+  "katex@<0.18.2": "0.18.11"

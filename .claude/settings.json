@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.*.local)",
+      "Read(./.env.production)",
+      "Read(./.env.development)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --force-with-lease:*)",
+      "Bash(vercel env pull:*)",
+      "Bash(npm install:*)",
+      "Bash(npm i:*)",
+      "Bash(npx:*)",
+      "Bash(yarn:*)"
+    ],
+    "ask": [
+      "Bash(pnpm add:*)",
+      "Bash(pnpm update:*)",
+      "Bash(pnpm up:*)",
+      "Bash(pnpm dlx:*)",
+      "Bash(pnpm install --no-frozen-lockfile:*)",
+      "Edit(./pnpm-workspace.yaml)",
+      "Edit(./.github/**)",
+      "Edit(./.claude/**)",
+      "Edit(./SECURITY.md)"
+    ]
+  }
+}

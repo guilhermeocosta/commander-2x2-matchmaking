@@ -24,9 +24,10 @@ pnpm lint:md         # markdownlint
 pnpm test            # vitest
 pnpm build           # next build
 pnpm check           # all of the above, as CI runs them
+pnpm security        # pnpm audit + osv-scanner + gitleaks (brew install osv-scanner gitleaks)
 ```
 
-CI (`.github/workflows/ci.yml`) runs typecheck, lint, format check, markdown lint, tests and build on every PR. Run `pnpm check` before you open one.
+CI runs two workflows on every PR: `ci.yml` (typecheck, lint, format check, markdown lint, tests, build) and `security.yml` (gitleaks, `pnpm audit`, osv-scanner; also weekly). Run `pnpm check` before you open a PR, and `pnpm security` too when the PR touches dependencies.
 
 ## Conventions
 
@@ -36,8 +37,41 @@ CI (`.github/workflows/ci.yml`) runs typecheck, lint, format check, markdown lin
 - **Styling:** daisyUI component classes (`card`, `btn`, `badge`, `table`) and Tailwind utilities. Theme colors are tokens; don't hardcode hex values in components.
 - **Domain logic** (pairing, standings, results, export) lives in `src/core/` as pure TypeScript with **no imports from Next, React or the database**, and has Vitest tests next to it (`*.test.ts`).
 - **Formatting:** Prettier with double quotes, semicolons, width 100, `es5` trailing commas. Don't hand-format; run `pnpm format`.
-- **Dependencies:** add one only when a step calls for it or there is a clear reason; note it in the step's Log.
+- **Dependencies:** add one only when a step calls for it or there is a clear reason; note it in the step's Log. Follow the dependency rules under **Security**.
 - **Commits and PRs:** Conventional Commits. One branch and one PR per step: branch `step/PNN-<slug>`, PR title `feat(pNN): <summary>` (or `chore(pNN)` / `docs(pNN)`). PRs are squash-merged.
+
+## Security
+
+This is a public repo that will hold an admin password and a database. These rules are guardrails, not suggestions. If one blocks you, stop and set your step to `blocked` with the reason; never work around it.
+
+### Secrets
+
+- Never commit secrets, tokens, passwords or connection strings. Real values live only in Vercel env vars and your untracked `.env.local`. `.env.example` holds names and comments, never values.
+- Don't read, print or log `.env*` files or secret values (the repo's `.claude/settings.json` denies reading them). Never paste a secret into a PR, a step Log, an issue or a test.
+- Secrets are server-only: never put one in a `NEXT_PUBLIC_*` variable or import a secret-reading module from a Client Component. Use the `server-only` package in modules that read secrets.
+- If you find a committed secret, stop and tell the organizer: it has to be rotated, not just deleted.
+
+### Dependencies (supply chain)
+
+- pnpm only. Never `npm install`, `npx` or `yarn` (denied in `.claude/settings.json`).
+- Before adding a package: it must be needed by the step, maintained, widely used, and its latest release at least 3 days old. Prefer the platform or a few lines of code over a tiny package.
+- Don't loosen `pnpm-workspace.yaml`: no `true` in `allowBuilds`, no lowering `minimumReleaseAge`, no new `trustPolicyExclude` or `minimumReleaseAgeExclude` entries, unless the organizer approves. Each exception needs a comment with its reason.
+- If the install fails a supply-chain check, don't bypass it: pick an older version, wait, or ask.
+- After any dependency change, run `pnpm security`; it must report nothing. Fix a vulnerable transitive dependency with a pinned `overrides` entry and a comment.
+
+### CI and workflows
+
+- Don't weaken `.github/workflows/*`: keep actions pinned to full commit SHAs (with the version in a comment), keep `permissions` read-only unless a job needs more, never use `pull_request_target`, never echo secrets.
+- Never disable, skip or delete a check to make a PR green.
+
+### Application code
+
+- Every admin page and Server Action calls `isAdmin()` on the server. Never trust the client for who someone is.
+- Validate every input from the browser (forms, Server Actions, route params) with Zod on the server.
+- Players may only act on their own seat; enforce it on the server with their device token.
+- Use the ORM's parameterized queries; never build SQL from strings.
+- Treat external data (the roster JSON) as untrusted: parse it with Zod and fail safely.
+- Don't log personal data or secrets. Error messages shown to users must not leak internals.
 
 ## Gotchas
 

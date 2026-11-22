@@ -23,6 +23,7 @@ Later phases (MVP and beyond) will own the season ranking, add player accounts, 
 | [docs/rules.md](docs/rules.md)               | Format rules the app enforces                                 |
 | [docs/architecture.md](docs/architecture.md) | Stack, data model, routes, infra                              |
 | [docs/plan/README.md](docs/plan/README.md)   | Step list, status table and state machine                     |
+| [SECURITY.md](SECURITY.md)                   | How to report a vulnerability; security checks in place       |
 
 ## Development
 
