@@ -8,7 +8,7 @@ Target: run the 2026-12-12 event (3 rounds) end to end in the app. The Hall da F
 
 | Step                       | Title                                    | Status | Depends on | Needs the organizer           |
 | -------------------------- | ---------------------------------------- | ------ | ---------- | ----------------------------- |
-| [P00](P00-setup.md)        | Setup                                    | review | —          | —                             |
+| [P00](P00-setup.md)        | Setup                                    | done   | —          | —                             |
 | [P01](P01-infra.md)        | Infra and deploy                         | todo   | P00        | Yes: Vercel, Neon, Cloudflare |
 | [P02](P02-core-rules.md)   | Core: results and standings              | todo   | P00        | —                             |
 | [P03](P03-core-pairing.md) | Core: pairing engine                     | todo   | P02        | —                             |

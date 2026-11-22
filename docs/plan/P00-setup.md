@@ -48,3 +48,4 @@ Nothing.
 
 - 2026-11-22: Repo created and scaffolded; tooling, CI and docs written. Status → review.
 - 2026-11-22: Added the security baseline. Lockfile regenerated under the 3-day release age (daisyUI resolves to 5.8.1). Overrides for `minimatch` and `katex` (same as the site) clear `pnpm audit` and osv-scanner. One reviewed `trustPolicyExclude`: `eslint-import-resolver-typescript@3.10.1` (dev-only, via `eslint-config-next`).
+- 2026-11-22: PR 1 merged; CI and Security green on main. Status → done.
