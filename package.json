@@ -18,6 +18,9 @@
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.ts",
+    "db:seed": "node --env-file-if-exists=.env.local --conditions=react-server scripts/seed.ts",
     "security": "pnpm audit && osv-scanner scan source --lockfile pnpm-lock.yaml && gitleaks git --no-banner --redact .",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm lint:md && pnpm test && pnpm build"
   },
