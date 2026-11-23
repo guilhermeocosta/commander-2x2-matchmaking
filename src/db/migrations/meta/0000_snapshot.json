@@ -1,0 +1,722 @@
+{
+  "id": "8773e8aa-fff4-4d09-a8e0-95afbe618dcf",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.audit_log": {
+      "name": "audit_log",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "audit_log_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "audit_log_event_at_idx": {
+          "name": "audit_log_event_at_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "audit_log_event_id_events_id_fk": {
+          "name": "audit_log_event_id_events_id_fk",
+          "tableFrom": "audit_log",
+          "tableTo": "events",
+          "columnsFrom": [
+            "event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.event_players": {
+      "name": "event_players",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "roster_id": {
+          "name": "roster_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "device_token_hash": {
+          "name": "device_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "joined_round": {
+          "name": "joined_round",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "dropped_after_round": {
+          "name": "dropped_after_round",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "event_players_event_id_events_id_fk": {
+          "name": "event_players_event_id_events_id_fk",
+          "tableFrom": "event_players",
+          "tableTo": "events",
+          "columnsFrom": [
+            "event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "event_players_device_token_hash_unique": {
+          "name": "event_players_device_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "device_token_hash"
+          ]
+        },
+        "event_players_event_roster_unique": {
+          "name": "event_players_event_roster_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "event_id",
+            "roster_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "event_players_joined_round_positive": {
+          "name": "event_players_joined_round_positive",
+          "value": "\"event_players\".\"joined_round\" >= 1"
+        },
+        "event_players_dropped_after_round_valid": {
+          "name": "event_players_dropped_after_round_valid",
+          "value": "\"event_players\".\"dropped_after_round\" is null or \"event_players\".\"dropped_after_round\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.events": {
+      "name": "events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "event_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "rounds": {
+          "name": "rounds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 3
+        },
+        "round_duration_sec": {
+          "name": "round_duration_sec",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 3000
+        },
+        "seed": {
+          "name": "seed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "events_code_unique": {
+          "name": "events_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "events_code_format": {
+          "name": "events_code_format",
+          "value": "\"events\".\"code\" ~ '^[A-Z0-9]{4}$'"
+        },
+        "events_rounds_positive": {
+          "name": "events_rounds_positive",
+          "value": "\"events\".\"rounds\" >= 1"
+        },
+        "events_round_duration_positive": {
+          "name": "events_round_duration_positive",
+          "value": "\"events\".\"round_duration_sec\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.rounds": {
+      "name": "rounds",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number": {
+          "name": "number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "round_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "seed": {
+          "name": "seed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paused_at": {
+          "name": "paused_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "elapsed_before_pause_sec": {
+          "name": "elapsed_before_pause_sec",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "duration_sec": {
+          "name": "duration_sec",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "rounds_event_id_events_id_fk": {
+          "name": "rounds_event_id_events_id_fk",
+          "tableFrom": "rounds",
+          "tableTo": "events",
+          "columnsFrom": [
+            "event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "rounds_event_number_unique": {
+          "name": "rounds_event_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "event_id",
+            "number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "rounds_number_positive": {
+          "name": "rounds_number_positive",
+          "value": "\"rounds\".\"number\" >= 1"
+        },
+        "rounds_duration_positive": {
+          "name": "rounds_duration_positive",
+          "value": "\"rounds\".\"duration_sec\" > 0"
+        },
+        "rounds_elapsed_non_negative": {
+          "name": "rounds_elapsed_non_negative",
+          "value": "\"rounds\".\"elapsed_before_pause_sec\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.seats": {
+      "name": "seats",
+      "schema": "",
+      "columns": {
+        "table_id": {
+          "name": "table_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "round_id": {
+          "name": "round_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_player_id": {
+          "name": "event_player_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team": {
+          "name": "team",
+          "type": "team",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "seats_event_player_idx": {
+          "name": "seats_event_player_idx",
+          "columns": [
+            {
+              "expression": "event_player_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "seats_event_player_id_event_players_id_fk": {
+          "name": "seats_event_player_id_event_players_id_fk",
+          "tableFrom": "seats",
+          "tableTo": "event_players",
+          "columnsFrom": [
+            "event_player_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "seats_table_round_fk": {
+          "name": "seats_table_round_fk",
+          "tableFrom": "seats",
+          "tableTo": "tables",
+          "columnsFrom": [
+            "table_id",
+            "round_id"
+          ],
+          "columnsTo": [
+            "id",
+            "round_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "seats_table_id_team_position_pk": {
+          "name": "seats_table_id_team_position_pk",
+          "columns": [
+            "table_id",
+            "team",
+            "position"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "seats_round_player_unique": {
+          "name": "seats_round_player_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "round_id",
+            "event_player_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "seats_position_valid": {
+          "name": "seats_position_valid",
+          "value": "\"seats\".\"position\" in (1, 2)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.tables": {
+      "name": "tables",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "round_id": {
+          "name": "round_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number": {
+          "name": "number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "table_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "outcome",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "games_a": {
+          "name": "games_a",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "games_b": {
+          "name": "games_b",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reported_by": {
+          "name": "reported_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reported_at": {
+          "name": "reported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "overridden": {
+          "name": "overridden",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tables_round_id_rounds_id_fk": {
+          "name": "tables_round_id_rounds_id_fk",
+          "tableFrom": "tables",
+          "tableTo": "rounds",
+          "columnsFrom": [
+            "round_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "tables_reported_by_event_players_id_fk": {
+          "name": "tables_reported_by_event_players_id_fk",
+          "tableFrom": "tables",
+          "tableTo": "event_players",
+          "columnsFrom": [
+            "reported_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "tables_round_number_unique": {
+          "name": "tables_round_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "round_id",
+            "number"
+          ]
+        },
+        "tables_id_round_unique": {
+          "name": "tables_id_round_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "round_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "tables_number_positive": {
+          "name": "tables_number_positive",
+          "value": "\"tables\".\"number\" >= 1"
+        },
+        "tables_games_valid": {
+          "name": "tables_games_valid",
+          "value": "(\"tables\".\"games_a\" is null or \"tables\".\"games_a\" >= 0) and (\"tables\".\"games_b\" is null or \"tables\".\"games_b\" >= 0)"
+        },
+        "tables_games_only_1v1": {
+          "name": "tables_games_only_1v1",
+          "value": "\"tables\".\"kind\" = '1v1' or (\"tables\".\"games_a\" is null and \"tables\".\"games_b\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.event_status": {
+      "name": "event_status",
+      "schema": "public",
+      "values": [
+        "open",
+        "running",
+        "finished"
+      ]
+    },
+    "public.outcome": {
+      "name": "outcome",
+      "schema": "public",
+      "values": [
+        "A",
+        "B",
+        "draw"
+      ]
+    },
+    "public.round_status": {
+      "name": "round_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "published",
+        "running",
+        "paused",
+        "overtime",
+        "closed"
+      ]
+    },
+    "public.table_kind": {
+      "name": "table_kind",
+      "schema": "public",
+      "values": [
+        "2v2",
+        "1v1",
+        "bye"
+      ]
+    },
+    "public.team": {
+      "name": "team",
+      "schema": "public",
+      "values": [
+        "A",
+        "B"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

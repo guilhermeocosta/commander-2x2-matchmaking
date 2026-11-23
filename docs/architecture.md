@@ -10,8 +10,8 @@ Sections marked **(planned)** describe what later steps build. Update them when 
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Framework  | Next.js 16 (App Router, Server Actions), React 19, TypeScript                                                                                   |
 | Styling    | Tailwind v4 + daisyUI 5, one dark theme (`c2x2-dark`)                                                                                           |
-| Database   | Neon Postgres via `@neondatabase/serverless`, Drizzle ORM + drizzle-kit (planned, P04)                                                          |
-| Validation | Zod (planned, from the first step that needs it)                                                                                                |
+| Database   | Neon Postgres via `@neondatabase/serverless`, Drizzle ORM + drizzle-kit                                                                         |
+| Validation | Zod (data-access inputs from P04; every Server Action from P05)                                                                                 |
 | Tests      | Vitest, for `src/core/`                                                                                                                         |
 | Hosting    | Vercel Hobby; preview deploy per PR                                                                                                             |
 | Domain     | `matchmaking.commander2x2.org` (Cloudflare DNS, CNAME to Vercel, DNS only)                                                                      |
@@ -54,16 +54,41 @@ src/
 | `/admin/e/[code]`               | admin   | Control panel: players, rounds, timer, results, standings, export |
 | `/admin/e/[code]/print/[round]` | admin   | Printable pairings for one round                                  |
 
-## Data model (planned, P04)
+## Data model
 
-| Table           | Columns                                                                                                                                                                                           |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `events`        | `id`, `code`, `name`, `date`, `status` (`open` \| `running` \| `finished`), `rounds`, `round_duration_sec`, `seed`, `created_at`                                                                  |
-| `event_players` | `id`, `event_id`, `display_name`, `roster_id?`, `device_token?`, `joined_round`, `dropped_after_round?`                                                                                           |
-| `rounds`        | `id`, `event_id`, `number`, `status` (`draft` \| `published` \| `running` \| `paused` \| `overtime` \| `closed`), `seed`, `started_at?`, `paused_at?`, `elapsed_before_pause_sec`, `duration_sec` |
-| `tables`        | `id`, `round_id`, `number`, `kind` (`2v2` \| `1v1` \| `bye`), `outcome?` (`A` \| `B` \| `draw`), `games_a?`, `games_b?`, `reported_by?`, `reported_at?`, `overridden`                             |
-| `seats`         | `table_id`, `event_player_id`, `team` (`A` \| `B`), `position` (1 \| 2)                                                                                                                           |
-| `audit_log`     | `id`, `event_id`, `actor`, `action`, `payload` (jsonb), `at`                                                                                                                                      |
+Defined in `src/db/schema.ts`; migrations in `src/db/migrations/`. Every id is a `uuid` (except `audit_log.id`, an identity), every timestamp is `timestamptz`, and enums are Postgres enums whose values match `src/core/types.ts`.
+
+| Table           | Columns                                                                                                                                                                                                         |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `events`        | `id`, `code` (unique, 4 × `A-Z0-9`), `name`, `date`, `status` (`open` \| `running` \| `finished`), `rounds`, `round_duration_sec` (default 3000), `seed`, `created_at`                                          |
+| `event_players` | `id`, `event_id`, `display_name`, `roster_id?`, `device_token_hash?` (unique), `joined_round` (default 1), `dropped_after_round?`, `created_at`                                                                 |
+| `rounds`        | `id`, `event_id`, `number`, `status` (`draft` \| `published` \| `running` \| `paused` \| `overtime` \| `closed`), `seed`, `started_at?`, `paused_at?`, `elapsed_before_pause_sec`, `duration_sec`, `created_at` |
+| `tables`        | `id`, `round_id`, `number`, `kind` (`2v2` \| `1v1` \| `bye`), `outcome?` (`A` \| `B` \| `draw`), `games_a?`, `games_b?`, `reported_by?`, `reported_at?`, `overridden`                                           |
+| `seats`         | `table_id`, `round_id`, `event_player_id`, `team` (`A` \| `B`), `position` (1 \| 2)                                                                                                                             |
+| `audit_log`     | `id`, `event_id?`, `actor`, `action`, `payload` (jsonb), `at`                                                                                                                                                   |
+
+Constraints worth knowing:
+
+- Unique: `events.code`; `(event_id, number)` for rounds; `(round_id, number)` for tables; `(event_id, roster_id)` for players (a season player joins an event once).
+- `seats` has primary key `(table_id, team, position)` and carries the table's `round_id` through a composite foreign key to `tables (id, round_id)`, so `(round_id, event_player_id)` is unique: a player sits at most once per round.
+- Deleting an event cascades to its players, rounds, tables, seats and audit entries. A player who has sat at a table can't be deleted on their own (`seats.event_player_id` has no cascade). Deleting a reporting player sets `tables.reported_by` to null.
+- Checks: positive round and table numbers, positions 1 or 2, non-negative games, and games only on a `1v1` table.
+- Device tokens are stored only as a SHA-256 hash (`device_token_hash`); the token itself lives only in the player's cookie.
+
+### Data access
+
+- `src/db/index.ts`: `getDb()`, the Drizzle client on the Neon HTTP driver, built on `getSql()` from `src/lib/db.ts`. Neon HTTP has no interactive transactions: use `db.batch([...])` for writes that must land together.
+- `src/db/queries.ts`: small typed functions (`getEventByCode`, `listEvents`, `createEvent`, `listEventPlayers`, `addEventPlayer`, `getEventPlayerByTokenHash`, `getRoundState`, `getLatestRound`, `getRoundRecords`, `writeAudit`) and the Zod schemas for their inputs. `getRoundRecords` returns `RoundRecord[]` for `standings` and `pairingHistory`.
+- `src/db/mappers.ts`: pure row → `src/core` mapping, unit-tested.
+- All DB modules except `schema.ts` and `mappers.ts` import `server-only`.
+
+### Migrations and seed
+
+- `pnpm db:generate` writes a migration from the schema (no database needed). Commit it with the schema change.
+- `pnpm db:migrate` applies pending migrations in one transaction (WebSocket driver); applied ones are skipped.
+- `pnpm db:seed` creates the `TEST` event with 13 players, adding only what is missing.
+- Both scripts run with Node's TypeScript support, load `.env.local` without printing it, and refuse to run with `VERCEL_ENV=production`. Point `.env.local` at a Neon **development branch**, never production.
+- Deploys: Phase 0 runs migrations by hand. Before merging a PR that adds a migration, the organizer runs `pnpm db:migrate` against production with its connection string (write migrations so the deployed version keeps working until the new one is live). Vercel builds don't migrate.
 
 ## Live updates and the timer (planned, P08)
 

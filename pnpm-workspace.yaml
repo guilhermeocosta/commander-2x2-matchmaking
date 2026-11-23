@@ -4,6 +4,9 @@
 # Lifecycle scripts (postinstall etc.) are blocked by default. A package only
 # runs its install scripts if it is listed here with `true`.
 allowBuilds:
+  # esbuild (via drizzle-kit, dev only): its postinstall only verifies the
+  # binary, which comes from the optional @esbuild/<platform> package anyway.
+  esbuild: false
   sharp: false
   unrs-resolver: false
 
@@ -36,3 +39,6 @@ blockExoticSubdeps: true
 overrides:
   "minimatch@>=7.0.0 <11.0.1": "11.0.4"
   "katex@<0.18.2": "0.18.11"
+  # GHSA-67mh-4wv8-2f99: drizzle-kit 0.31 > @esbuild-kit/core-utils pins
+  # esbuild 0.18 (dev only). 0.25.12 is the version drizzle-kit itself uses.
+  "esbuild@<0.25.0": "0.25.12"
