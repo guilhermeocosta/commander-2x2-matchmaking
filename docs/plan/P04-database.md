@@ -47,3 +47,4 @@ P01 (needs `DATABASE_URL`).
 - How migrations run on Vercel deploys: document the chosen approach (manual `db:migrate` before deploy is fine for Phase 0).
 
 ## Log
+- 2026-11-22: Started on `step/P04-database` from `main`.
