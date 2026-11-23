@@ -45,3 +45,5 @@ P04.
 - Keep `isAdmin()` the only gate, so accounts can replace it later.
 
 ## Log
+
+- 2026-11-22: Started on `step/P05-admin-events` from `main`.
