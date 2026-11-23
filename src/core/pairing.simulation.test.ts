@@ -218,14 +218,11 @@ describe("simulated events", () => {
     });
   }
 
-  it(`keeps repeated teammates bounded with ${LARGE_N}+ players`, () => {
-    // Teammates share results, so former teammates often have the same points, and priority 2
-    // (smallest teammate gap) outranks priority 4 (no repeated teammate). The repeats left are
-    // the ones the rules' order forces; the brute-force test below shows the search finds the
-    // best seating. Measured: ~0.14 repeated teammates per pairing. This bound catches a
-    // regression in search quality, not a rules change.
+  it(`rarely repeats a teammate with ${LARGE_N}+ players`, () => {
+    // Smaller events repeat teammates when points force it; the brute-force test below shows
+    // the engine still finds the best seating there.
     expect(stats.pairings).toBe((MAX_N - LARGE_N + 1) * SEEDS_PER_N * ROUNDS);
-    expect(stats.repeatedTeammates / stats.pairings, JSON.stringify(stats)).toBeLessThan(0.2);
+    expect(stats.repeatedTeammates / stats.pairings, JSON.stringify(stats)).toBeLessThan(0.02);
     expect(stats.maxMs).toBeLessThan(500);
   });
 });

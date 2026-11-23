@@ -214,7 +214,7 @@ describe("pairRound", () => {
     }
   });
 
-  it("keeps points first and warns about the repeated teammate it could not avoid", () => {
+  it("never splits a repeat into 2-0 with 0-2 teammates, and warns instead", () => {
     const players = pts([6, 6, 0, 0]);
     const history: PairingHistory = { ...EMPTY, teammates: [["a6", "b6"]] };
     const { tables, warnings } = pairRound({ players, history, seed: 1 });
@@ -223,6 +223,21 @@ describe("pairRound", () => {
       ["c0", "d0"],
     ]);
     expect(warnings).toEqual([{ kind: "repeated-teammate", playerIds: ["a6", "b6"] }]);
+  });
+
+  it("splits former teammates before minimizing the teammate gap", () => {
+    // 3, 3, 0, 0 where the two 3s were teammates last round: 3+0 vs 3+0, no warning.
+    const players = pts([3, 3, 0, 0]);
+    const history: PairingHistory = { ...EMPTY, teammates: [["a3", "b3"]] };
+    for (let seed = 0; seed < 10; seed++) {
+      const { tables, warnings } = pairRound({ players, history, seed });
+      const teams = teamsOf(tables[0]).map((team) => team.map((id) => Number(id.slice(1))).sort());
+      expect(teams).toEqual([
+        [0, 3],
+        [0, 3],
+      ]);
+      expect(warnings).toEqual([]);
+    }
   });
 
   it("never teams a 2-0 player with a 0-2 player when another seating exists", () => {

@@ -157,17 +157,17 @@ const MAX_PASSES = 25;
  * priority can never outweigh a higher one. Lower is better. Each entry is summed over tables.
  */
 export type SeatingCost = readonly [
-  /** Teammate pairs two wins apart (2-0 with 0-2): kept at zero whenever any seating allows. */
+  /** Priority 1: teammate pairs two wins apart (2-0 with 0-2), zero whenever any seating allows. */
   extremeTeammates: number,
-  /** Priority 1: squared points spread (max − min) per table. */
+  /** Priority 2: squared points spread (max − min) per table. */
   spread: number,
-  /** Priority 2: squared points gap per pair of teammates. */
-  teammateGap: number,
   /** Priority 3: players getting a second bye or a second 1v1. */
   secondSpecial: number,
   /** Priority 4: teammate pairs who were teammates before. */
   repeatedTeammates: number,
-  /** Priority 5: opponent pairs who faced each other before. */
+  /** Priority 5: squared points gap per pair of teammates. */
+  teammateGap: number,
+  /** Priority 6: opponent pairs who faced each other before. */
   repeatedOpponents: number,
 ];
 
@@ -177,7 +177,7 @@ export function compareCost(a: SeatingCost, b: SeatingCost): number {
   return 0;
 }
 
-/** A broken priority 3–5 the admin should know about before publishing. */
+/** A broken priority 3, 4 or 6 the admin should know about before publishing. */
 export type PairingWarning =
   | { kind: "second-bye"; playerIds: [PlayerId] }
   | { kind: "second-1v1"; playerIds: [PlayerId] }
@@ -246,9 +246,10 @@ export function pairRound({ players, history, seed }: PairRoundInput): PairRound
 }
 
 /**
- * Splits four players into two teams: the split with the smallest points gap between
- * teammates (the closest-points players together), then the fewest repeated teammates, then
- * the fewest repeated opponents. This is the open item in the rules; change it only here.
+ * Splits four players into two teams, comparing the splits by `splitCost`: never a 2-0 with a
+ * 0-2 player, then the fewest repeated teammates, then the smallest points gap between
+ * teammates, then the fewest repeated opponents (docs/rules.md). Change the rule only here and
+ * in `splitCost`.
  *
  * Returns the indexes into `four` of team A and team B, with the stronger team as A.
  */
@@ -311,10 +312,10 @@ export function seatingCost(
   const cost = [0, 0, 0, 0, 0, 0];
   for (const { kind, seats } of tables) {
     if (kind === "bye") {
-      cost[3] += seats.filter((s) => hadBye.has(s.playerId)).length;
+      cost[2] += seats.filter((s) => hadBye.has(s.playerId)).length;
       continue;
     }
-    if (kind === "1v1") cost[3] += seats.filter((s) => hadOneVsOne.has(s.playerId)).length;
+    if (kind === "1v1") cost[2] += seats.filter((s) => hadOneVsOne.has(s.playerId)).length;
     const values = seats.map((s) => pts(s.playerId));
     const spread = Math.max(...values) - Math.min(...values);
     cost[1] += spread * spread;
@@ -324,8 +325,8 @@ export function seatingCost(
         if (seats[i].team === seats[j].team) {
           const gap = Math.abs(pts(x) - pts(y));
           if (gap >= EXTREME_GAP) cost[0]++;
-          cost[2] += gap * gap;
-          if (teammates.has(pairKey(x, y))) cost[4]++;
+          cost[4] += gap * gap;
+          if (teammates.has(pairKey(x, y))) cost[3]++;
         } else if (opponents.has(pairKey(x, y))) {
           cost[5]++;
         }
@@ -336,7 +337,7 @@ export function seatingCost(
 }
 
 /**
- * Every broken priority 3–5 in a seated round: a second bye or 1v1, and each pair of
+ * Every broken priority 3, 4 or 6 in a seated round: a second bye or 1v1, and each pair of
  * teammates or opponents who already sat together that way.
  */
 export function pairingWarnings(
@@ -385,8 +386,8 @@ function twoVsTwoTable([a1, a2]: PlayerId[], [b1, b2]: PlayerId[]): TableRecord 
   };
 }
 
-/** Per-table cost: the {@link SeatingCost} entries a 2v2 table can change. */
-type TableCost = [extreme: number, spread: number, gap: number, teammate: number, opp: number];
+/** Per-table cost: the {@link SeatingCost} entries a 2v2 table can change, in the same order. */
+type TableCost = [extreme: number, spread: number, teammate: number, gap: number, opp: number];
 
 /**
  * The 2v2 players as indexes 0..n−1, with points and history in flat arrays so the inner loop
@@ -537,7 +538,7 @@ class SearchContext {
     );
   }
 
-  /** [extreme teammates, squared teammate gaps, repeated teammates, repeated opponents]. */
+  /** [extreme teammates, repeated teammates, squared teammate gaps, repeated opponents]. */
   private splitCost([a1, a2]: [number, number], [b1, b2]: [number, number]): number[] {
     const n = this.n;
     const gapA = Math.abs(this.points[a1] - this.points[a2]);
@@ -549,7 +550,7 @@ class SearchContext {
       this.opponents[a1 * n + b2] +
       this.opponents[a2 * n + b1] +
       this.opponents[a2 * n + b2];
-    return [extreme, gapA * gapA + gapB * gapB, teammate, opp];
+    return [extreme, teammate, gapA * gapA + gapB * gapB, opp];
   }
 }
 
