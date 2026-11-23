@@ -49,9 +49,11 @@ export async function logout(): Promise<void> {
 
 /** True when the request carries a valid, unexpired admin session. Memoized per request. */
 export const isAdmin = cache(async (): Promise<boolean> => {
+  // Read the cookie before anything else: it marks the caller as request-time, so Next never
+  // prerenders an admin page (or its redirect) at build time, even when the env is unset there.
+  const store = await cookies();
   const secret = sessionSecret();
   if (!secret) return false;
-  const store = await cookies();
   return verifySession(store.get(ADMIN_COOKIE)?.value, secret, Date.now());
 });
 
