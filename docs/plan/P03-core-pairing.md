@@ -47,3 +47,5 @@ P02 (uses its types, RNG and standings).
 - Teammate selection is an open item in the rules; keep it in one small function so it's easy to change.
 
 ## Log
+
+- 2026-11-22: Started on `step/P03-core-pairing` from `main` (a previous attempt stopped before writing code).
