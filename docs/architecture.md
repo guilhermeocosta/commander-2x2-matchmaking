@@ -22,7 +22,7 @@ Sections marked **(planned)** describe what later steps build. Update them when 
 
 | Name             | Used by | Notes                                                   |
 | ---------------- | ------- | ------------------------------------------------------- |
-| `DATABASE_URL`   | P04+    | Injected by the Neon integration on Vercel              |
+| `DATABASE_URL`   | P01+    | Injected by the Neon integration on Vercel              |
 | `ADMIN_PASSWORD` | P05+    | The organizer's password for `/admin`                   |
 | `SESSION_SECRET` | P05+    | Random 32+ chars; signs admin and player cookies (HMAC) |
 
