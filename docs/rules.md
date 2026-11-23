@@ -27,20 +27,23 @@ These are the event rules for Phase 0. They come from the format rules on [comma
 
 Highest first. Lower priorities only break ties between seatings that are equal on the higher ones.
 
-1. **Points spread inside a table** as small as possible (Swiss brackets, top-down; leftover players pair down into the next bracket).
-2. **Points gap between teammates** as small as possible. A 2-0 player is never teamed with a 0-2 player when any other seating exists. Inside a table, the two closest-points players are teammates.
+1. **Never team a 2-0 player with a 0-2 player** when any other seating exists.
+2. **Points spread inside a table** as small as possible (Swiss brackets, top-down; leftover players pair down into the next bracket).
 3. **No second bye and no second 1v1** for the same player in an event.
 4. **Avoid repeated teammates** within the event.
-5. **Avoid repeated opponents** within the event.
+5. **Points gap between teammates** as small as possible.
+6. **Avoid repeated opponents** within the event.
+
+Inside a table, teams are chosen to avoid repeating a teammate first, then to make the points gap between teammates as small as possible.
 
 Assignment of the special seats:
 
 - **Bye:** the lowest player in the standings who hasn't had a bye. Round 1: random.
 - **1v1:** the next two lowest players who haven't played 1v1, avoiding a rematch. Round 1: random.
 
-Every pairing is generated from a stored **seed**, so it can be reproduced. The admin can re-roll (new seed) or swap two players before publishing. The engine reports a **warning** whenever it had to break priority 3, 4 or 5.
+Every pairing is generated from a stored **seed**, so it can be reproduced. The admin can re-roll (new seed) or swap two players before publishing. The engine reports a **warning** whenever it had to break priority 3, 4 or 6.
 
-> Open item: how teammates are chosen inside a table is still to be discussed further. "Closest points are teammates" is the working rule for Phase 0.
+> Decided 2026-11-22 by the organizer: avoiding a repeated teammate ranks above the teammates' points gap. Former teammates share results, so they often have the same points; with the gap first, teammates repeated far more often.
 
 ## Scoring
 

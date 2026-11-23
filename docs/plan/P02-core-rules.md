@@ -54,3 +54,4 @@ P00.
   - OMW counts every opponent of every match (two per 2v2, one per 1v1; repeats count again), floor 0.33, and is 0 for a player with no opponents. Ties within 1e-9 go to the seeded draw.
   - `standings(players, rounds, seed)` ranks only `players` (pass dropped players to show them), while everyone in `rounds` feeds tiebreakers. The seeded draw shuffles the sorted ids with mulberry32, so input order doesn't matter. Seed is a number reduced to uint32.
   - Test builders live in `src/core/test-helpers.ts` for reuse in P03.
+- 2026-11-22: PR #3 merged by the organizer; status set to `done`.
