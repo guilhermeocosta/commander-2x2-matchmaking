@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { canStillPlay, isEventFull, playerStatus } from "@/core/players";
-import { getEventByCode, getLatestRoundNumber, listEventPlayers } from "@/db/queries";
+import { getEventByCode, getLatestPairedRoundNumber, listEventPlayers } from "@/db/queries";
 import { getCurrentPlayer } from "@/lib/player-session";
 import { EVENT_FULL, isJoinable } from "@/lib/players";
 import { getRoster } from "@/lib/roster";
@@ -23,7 +23,7 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
 
   const [player, latestRound] = await Promise.all([
     getCurrentPlayer(event),
-    getLatestRoundNumber(event.id),
+    getLatestPairedRoundNumber(event.id),
   ]);
 
   let body: React.ReactNode;

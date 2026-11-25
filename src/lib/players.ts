@@ -5,7 +5,7 @@ import type { RosterEntry } from "@/core/roster";
 import {
   addEventPlayer,
   countEventPlayers,
-  getLatestRoundNumber,
+  getLatestPairedRoundNumber,
   isUniqueViolation,
   writeAudit,
   type AuditEntryInput,
@@ -48,7 +48,7 @@ export async function addPlayer(
   if (!isJoinable(event)) return { ok: false, error: JOIN_CLOSED };
   try {
     const [latest, players] = await Promise.all([
-      getLatestRoundNumber(event.id),
+      getLatestPairedRoundNumber(event.id),
       countEventPlayers(event.id),
     ]);
     if (isEventFull(players)) return { ok: false, error: EVENT_FULL };

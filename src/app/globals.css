@@ -38,3 +38,34 @@
 @theme {
   --font-sans: system-ui, sans-serif;
 }
+
+/*
+ * Print only (the round print page): paper is white, so this is the one place a light
+ * background is allowed. The screen stays dark.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: white;
+    color: black;
+  }
+
+  .print-page {
+    max-width: none;
+    padding: 0;
+    color: black;
+  }
+
+  .print-avoid-break {
+    break-inside: avoid;
+  }
+
+  .print-break-before {
+    break-before: page;
+  }
+}
