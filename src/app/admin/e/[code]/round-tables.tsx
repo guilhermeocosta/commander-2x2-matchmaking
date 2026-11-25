@@ -1,6 +1,6 @@
 import type { Seat, TableKind } from "@/core/types";
 
-import { pointsLabel, seatLabel, tableTitle, turnOrder } from "./round-copy";
+import { pointsLabel, seatLabel, tableTitle, turnOrder } from "@/lib/round-copy";
 
 /** One table as shown to the admin, with display names already resolved. */
 export interface TableView {

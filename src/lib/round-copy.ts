@@ -1,7 +1,8 @@
 import type { GenerateBlock, RoundStatus, RoundWarning } from "@/core/rounds";
+import { extraTurns } from "@/core/timer";
 import type { Seat, TableKind } from "@/core/types";
 
-/** pt-BR copy for rounds, shared by the admin panel, its actions and the print page. */
+/** pt-BR copy for rounds, shared by the admin panel, the print page and the live views. */
 
 export function generateBlockMessage(block: GenerateBlock): string {
   switch (block.kind) {
@@ -62,4 +63,10 @@ export function tableTitle(kind: TableKind, number: number): string {
 /** "0 pts", "1 pt", "3 pts". */
 export function pointsLabel(points: number): string {
   return `${points} ${points === 1 ? "pt" : "pts"}`;
+}
+
+/** "Turno atual + 3 turnos extras" (2v2) or "+ 5" (1v1); null for a bye. */
+export function overtimeMessage(kind: TableKind): string | null {
+  const turns = extraTurns(kind);
+  return turns === null ? null : `Turno atual + ${turns} turnos extras`;
 }

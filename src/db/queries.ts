@@ -2,10 +2,12 @@ import "server-only";
 
 import { randomInt, randomUUID } from "node:crypto";
 
-import { and, asc, count, desc, eq, exists, inArray, ne } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, inArray, isNull, ne, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import { generateEventCode } from "../core/event-code.ts";
+import type { StoredLiveRound } from "../core/event-state.ts";
+import type { TimerFields } from "../core/timer.ts";
 import type { RoundRecord, TableRecord } from "../core/types.ts";
 import { getDb } from "./index.ts";
 import { toRoundRecords, toSeatRows, toTableRecord } from "./mappers.ts";
@@ -459,6 +461,134 @@ export async function finishEvent(eventId: string): Promise<boolean> {
     .set({ status: "finished" })
     .where(and(eq(events.id, eventId), eq(events.status, "running")))
     .returning({ id: events.id });
+  return rows.length > 0;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Live round and timer
+
+/** The latest round past `draft` with its tables and seated names, for the live views. */
+export async function getLiveRound(
+  eventId: string
+): Promise<(StoredLiveRound & { id: string }) | undefined> {
+  const db = getDb();
+  const [round] = await db
+    .select()
+    .from(rounds)
+    .where(and(eq(rounds.eventId, eventId), ne(rounds.status, "draft")))
+    .orderBy(desc(rounds.number))
+    .limit(1);
+  if (!round) return undefined;
+  const [tableRows, seatRows] = await db.batch([
+    db
+      .select({ id: tables.id, number: tables.number, kind: tables.kind })
+      .from(tables)
+      .where(eq(tables.roundId, round.id))
+      .orderBy(asc(tables.number)),
+    db
+      .select({
+        tableId: seats.tableId,
+        playerId: seats.eventPlayerId,
+        name: eventPlayers.displayName,
+        team: seats.team,
+        position: seats.position,
+      })
+      .from(seats)
+      .innerJoin(eventPlayers, eq(seats.eventPlayerId, eventPlayers.id))
+      .where(eq(seats.roundId, round.id)),
+  ]);
+  return {
+    id: round.id,
+    number: round.number,
+    ...toTimerFields(round),
+    tables: tableRows.map((t) => ({
+      number: t.number,
+      kind: t.kind,
+      seats: seatRows
+        .filter((s) => s.tableId === t.id)
+        .map((s) => ({
+          playerId: s.playerId,
+          name: s.name,
+          team: s.team,
+          position: s.position === 2 ? 2 : 1,
+        })),
+    })),
+  };
+}
+
+/** A round row's timer fields, with timestamps as epoch milliseconds. */
+export function toTimerFields(round: RoundRow): TimerFields {
+  return {
+    status: round.status,
+    startedAt: round.startedAt?.getTime() ?? null,
+    pausedAt: round.pausedAt?.getTime() ?? null,
+    elapsedBeforePauseSec: round.elapsedBeforePauseSec,
+    durationSec: round.durationSec,
+  };
+}
+
+function timestampIs(
+  column: typeof rounds.startedAt | typeof rounds.pausedAt,
+  ms: number | null
+): SQL {
+  return ms === null ? isNull(column) : eq(column, new Date(ms));
+}
+
+/**
+ * Writes new timer fields if the round's clock still matches `prev` (status aside: a `running`
+ * round may have been marked `overtime` meanwhile). Returns false when another click got there
+ * first; the caller reloads and tries again or reports a stale page.
+ */
+export async function updateRoundTimer(
+  roundId: string,
+  prev: TimerFields,
+  next: TimerFields
+): Promise<boolean> {
+  const rows = await getDb()
+    .update(rounds)
+    .set({
+      status: next.status,
+      startedAt: next.startedAt === null ? null : new Date(next.startedAt),
+      pausedAt: next.pausedAt === null ? null : new Date(next.pausedAt),
+      elapsedBeforePauseSec: next.elapsedBeforePauseSec,
+      durationSec: next.durationSec,
+    })
+    .where(
+      and(
+        eq(rounds.id, roundId),
+        inArray(
+          rounds.status,
+          prev.status === "published" ? ["published"] : ["running", "paused", "overtime"]
+        ),
+        timestampIs(rounds.startedAt, prev.startedAt),
+        timestampIs(rounds.pausedAt, prev.pausedAt),
+        eq(rounds.elapsedBeforePauseSec, prev.elapsedBeforePauseSec),
+        eq(rounds.durationSec, prev.durationSec)
+      )
+    )
+    .returning({ id: rounds.id });
+  return rows.length > 0;
+}
+
+/**
+ * Stores `running` → `overtime` once the time is up, if the clock is still the one read. The
+ * clients already show overtime from the timestamps; this keeps the stored status in step.
+ * Returns true only for the call that made the change.
+ */
+export async function markRoundOvertime(roundId: string, prev: TimerFields): Promise<boolean> {
+  const rows = await getDb()
+    .update(rounds)
+    .set({ status: "overtime" })
+    .where(
+      and(
+        eq(rounds.id, roundId),
+        eq(rounds.status, "running"),
+        timestampIs(rounds.startedAt, prev.startedAt),
+        isNull(rounds.pausedAt),
+        eq(rounds.durationSec, prev.durationSec)
+      )
+    )
+    .returning({ id: rounds.id });
   return rows.length > 0;
 }
 

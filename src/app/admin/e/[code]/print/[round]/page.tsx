@@ -7,7 +7,7 @@ import { getEventByCode, getRoundState, listEventPlayers } from "@/db/queries";
 import { requireAdmin } from "@/lib/auth";
 
 import { formatEventDate } from "../../../../ui";
-import { roundStatusLabels, seatLabel, tableTitle, turnOrder } from "../../round-copy";
+import { roundStatusLabels, seatLabel, tableTitle, turnOrder } from "@/lib/round-copy";
 import { nameLookup } from "../../rounds-section";
 import { PrintButton } from "./print-button";
 
