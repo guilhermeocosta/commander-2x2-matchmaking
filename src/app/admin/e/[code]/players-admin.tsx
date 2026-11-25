@@ -171,7 +171,13 @@ export function PlayerRow({
       <details className="group">
         <summary className="link link-hover cursor-pointer text-sm text-primary">Gerenciar</summary>
         <div className="mt-3 flex flex-col gap-4">
-          <form action={editAction} className="flex flex-col gap-3">
+          {/* Keyed on the saved values: React resets a form after its action, and a remount
+              makes the inputs pick up the new defaults (a <select> wouldn't otherwise). */}
+          <form
+            key={`${player.displayName}|${player.rosterId ?? ""}`}
+            action={editAction}
+            className="flex flex-col gap-3"
+          >
             <input type="hidden" name="playerId" value={player.id} />
             <label className="floating-label">
               <span>Nome</span>

@@ -47,6 +47,7 @@ src/
 | ------------------------------- | ------- | ----------------------------------------------------------------- |
 | `/`                             | anyone  | Enter an event code                                               |
 | `/e/[code]`                     | player  | Join, then: my seat, timer, report result, standings              |
+| `/e/[code]/entrar`              | player  | Claim a link the admin reissued (token in the URL fragment)       |
 | `/e/[code]/display`             | anyone  | Projector: pairings in large type + timer                         |
 | `/api/e/[code]/state`           | clients | JSON snapshot for polling (`no-store`, includes server `now`)     |
 | `/admin/login`                  | admin   | Password login                                                    |
@@ -96,8 +97,10 @@ Constraints worth knowing:
 - The timer is computed on each client from `started_at`, `paused_at`, `elapsed_before_pause_sec` and `duration_sec`. The state response includes the server's `now` so clients correct their clock offset.
 - At 0:00 the round shows overtime: "turno atual + 3" at 2v2 tables, "turno atual + 5" at the 1v1 table.
 
-## Identity and security (planned, P05–P06)
+## Identity and security
 
 - **Admin:** one password from `ADMIN_PASSWORD`; on login, an httpOnly cookie signed with `SESSION_SECRET`. All admin checks go through `isAdmin()`.
-- **Players:** no accounts. Joining sets an httpOnly, per-event device-token cookie. A player can report only for a table they sit at. The admin can reissue a player's link if their phone dies.
-- **Roster:** fetched server-side from `https://raw.githubusercontent.com/guilhermeocosta/commander-2x2/main/src/data/leaderboard.json`, cached for 1 hour, to offer known names when joining.
+- **Players:** no accounts. Joining sets an httpOnly, Secure, SameSite=Lax cookie `c2x2_p_<CODE>` (one per event) holding 32 random bytes; the database stores only its SHA-256 (`device_token_hash`). `getCurrentPlayer()` in `src/lib/player-session.ts` is the only way to learn who a player is, so players act only on their own seat. A device that already joined an event can't join it again; a roster id joins an event once.
+- **Reissued links:** when a phone dies, the admin generates `/e/CODE/entrar#<token>`, shown as a QR code and a URL. The old device stops working at once. The token sits in the URL fragment, which browsers never send in a request, and the page posts it to a Server Action only when the player taps "Entrar neste aparelho". Claiming swaps it for a fresh token in one statement, so each link works once.
+- **Roster:** fetched server-side from `https://raw.githubusercontent.com/guilhermeocosta/commander-2x2/main/src/data/leaderboard.json` (`src/lib/roster.ts`), validated with Zod, and cached for 1 hour with `"use cache"`. Failures aren't cached, and the roster is then empty: players join by typing a name.
+- **Audit:** every player change is written to `audit_log` with ids only (no names or tokens): `player_joined`, `player_added`, `player_renamed`, `player_roster_linked`/`_unlinked`, `player_dropped`, `player_drop_undone`, `player_link_reissued`, `player_link_claimed`.
