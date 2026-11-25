@@ -6,11 +6,11 @@ import { getEventByCode } from "@/db/queries";
 import { requireAdmin } from "@/lib/auth";
 
 import { AdminHeader, EventStatusBadge, formatEventDate } from "../../ui";
+import { PlayersSection } from "./players-section";
 
 export const metadata: Metadata = { title: "Evento · Admin · Commander 2x2" };
 
 const sections = [
-  { id: "jogadores", title: "Jogadores" },
   { id: "rodadas", title: "Rodadas" },
   { id: "classificacao", title: "Classificação" },
 ];
@@ -47,6 +47,8 @@ export default async function AdminEventPage({ params }: PageProps<"/admin/e/[co
             </p>
           </div>
         </section>
+
+        <PlayersSection event={event} />
 
         {sections.map((section) => (
           <section key={section.id} id={section.id} className="card bg-base-200">

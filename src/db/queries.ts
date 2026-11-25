@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomInt } from "node:crypto";
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { generateEventCode } from "../core/event-code.ts";
@@ -49,6 +49,9 @@ export const newEventSchema = z.object({
 });
 export type NewEventInput = z.input<typeof newEventSchema>;
 
+/** SHA-256 (hex) of a device token. */
+export const deviceTokenHashSchema = z.string().regex(/^[0-9a-f]{64}$/);
+
 export const newEventPlayerSchema = z.object({
   eventId: z.uuid(),
   displayName: z.string().trim().min(1).max(60),
@@ -57,10 +60,7 @@ export const newEventPlayerSchema = z.object({
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
     .max(80)
     .nullish(),
-  deviceTokenHash: z
-    .string()
-    .regex(/^[0-9a-f]{64}$/)
-    .nullish(),
+  deviceTokenHash: deviceTokenHashSchema.nullish(),
   joinedRound: z.int().min(1).default(1),
 });
 export type NewEventPlayerInput = z.input<typeof newEventPlayerSchema>;
@@ -99,7 +99,7 @@ export async function createEvent(input: NewEventInput): Promise<EventRow> {
 }
 
 /** True for a Postgres unique violation (SQLSTATE 23505), possibly wrapped by Drizzle. */
-function isUniqueViolation(error: unknown): boolean {
+export function isUniqueViolation(error: unknown): boolean {
   for (let e: unknown = error, i = 0; e && i < 3; e = (e as { cause?: unknown }).cause, i++) {
     if ((e as { code?: unknown }).code === "23505") return true;
   }
@@ -138,6 +138,15 @@ export async function listEventPlayers(eventId: string): Promise<EventPlayerRow[
     .orderBy(asc(eventPlayers.createdAt), asc(eventPlayers.id));
 }
 
+/** Every player of an event, dropped ones included. */
+export async function countEventPlayers(eventId: string): Promise<number> {
+  const [row] = await getDb()
+    .select({ n: count() })
+    .from(eventPlayers)
+    .where(eq(eventPlayers.eventId, eventId));
+  return row?.n ?? 0;
+}
+
 export async function addEventPlayer(input: NewEventPlayerInput): Promise<EventPlayerRow> {
   const values = newEventPlayerSchema.parse(input);
   const [row] = await getDb().insert(eventPlayers).values(values).returning();
@@ -156,6 +165,67 @@ export async function getEventPlayerByTokenHash(
       and(eq(eventPlayers.eventId, eventId), eq(eventPlayers.deviceTokenHash, deviceTokenHash))
     )
     .limit(1);
+  return row;
+}
+
+export async function getEventPlayer(
+  eventId: string,
+  id: string
+): Promise<EventPlayerRow | undefined> {
+  if (!z.uuid().safeParse(id).success) return undefined;
+  const [row] = await getDb()
+    .select()
+    .from(eventPlayers)
+    .where(and(eq(eventPlayers.eventId, eventId), eq(eventPlayers.id, id)))
+    .limit(1);
+  return row;
+}
+
+export const eventPlayerPatchSchema = z
+  .object({
+    displayName: newEventPlayerSchema.shape.displayName,
+    rosterId: newEventPlayerSchema.shape.rosterId,
+    deviceTokenHash: newEventPlayerSchema.shape.deviceTokenHash,
+    droppedAfterRound: z.int().min(0).nullable(),
+  })
+  .partial();
+export type EventPlayerPatch = z.input<typeof eventPlayerPatchSchema>;
+
+/**
+ * Updates one player of an event. Returns undefined when the player isn't in that event.
+ * Rejects (unique violation) when the new roster id is already taken in the event.
+ */
+export async function updateEventPlayer(
+  eventId: string,
+  id: string,
+  patch: EventPlayerPatch
+): Promise<EventPlayerRow | undefined> {
+  const values = eventPlayerPatchSchema.parse(patch);
+  const [row] = await getDb()
+    .update(eventPlayers)
+    .set(values)
+    .where(and(eq(eventPlayers.eventId, eventId), eq(eventPlayers.id, id)))
+    .returning();
+  return row;
+}
+
+/**
+ * Replaces a device-token hash with a new one in a single statement, so a token can be used
+ * only once (reissue links). Returns the player, or undefined if `oldHash` matches nobody.
+ */
+export async function swapDeviceTokenHash(
+  eventId: string,
+  oldHash: string,
+  newHash: string
+): Promise<EventPlayerRow | undefined> {
+  const hash = deviceTokenHashSchema;
+  const [row] = await getDb()
+    .update(eventPlayers)
+    .set({ deviceTokenHash: hash.parse(newHash) })
+    .where(
+      and(eq(eventPlayers.eventId, eventId), eq(eventPlayers.deviceTokenHash, hash.parse(oldHash)))
+    )
+    .returning();
   return row;
 }
 
@@ -199,6 +269,17 @@ export async function getRoundState(
       ),
     })),
   };
+}
+
+/** The number of the latest generated (paired) round, or 0 before round 1 exists. */
+export async function getLatestRoundNumber(eventId: string): Promise<number> {
+  const [row] = await getDb()
+    .select({ number: rounds.number })
+    .from(rounds)
+    .where(eq(rounds.eventId, eventId))
+    .orderBy(desc(rounds.number))
+    .limit(1);
+  return row?.number ?? 0;
 }
 
 /** The latest round of an event, or undefined before round 1 is generated. */

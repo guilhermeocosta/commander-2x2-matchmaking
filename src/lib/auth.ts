@@ -2,6 +2,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { cache } from "react";
 
 import { MIN_SECRET_LENGTH, passwordsMatch, signSession, verifySession } from "./session";
@@ -52,6 +53,10 @@ export const isAdmin = cache(async (): Promise<boolean> => {
   // Read the cookie before anything else: it marks the caller as request-time, so Next never
   // prerenders an admin page (or its redirect) at build time, even when the env is unset there.
   const store = await cookies();
+  // With Cache Components, a dev prerender can still reach the clock below after `cookies()`
+  // and reports "blocking-prerender-current-time". `connection()` stops prerendering here, so
+  // `Date.now()` only ever runs for a real request.
+  await connection();
   const secret = sessionSecret();
   if (!secret) return false;
   return verifySession(store.get(ADMIN_COOKIE)?.value, secret, Date.now());

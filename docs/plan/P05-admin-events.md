@@ -53,3 +53,4 @@ P04.
   - Verified in the browser pane against `next start` with the Neon dev branch at 375 px: wrong password shows "Senha incorreta."; the organizer logged in and landed on `/admin`; creating "Teste P05" listed it as `Q278`; `/admin/e/Q278` opens; logged-out `/admin` and `/admin/e/TEST` end on login; a forged cookie is rejected. Not verified in the browser: submitting "Novo evento" after logging out in another tab (the action calls `isAdmin()` first and redirects).
   - Follow-ups: rate-limit failed logins; the `Q278` test event stays on the dev branch.
 - 2026-11-24: gitleaks flagged the fake session key in `src/lib/session.test.ts` (commit `001a452`; nothing real leaked). The test keys are now built in code, and `.gitleaksignore` lists only that one finding, as the organizer approved, because the old commit stays in the branch history. `pnpm check` and `pnpm security` are clean.
+- 2026-11-24: Done: the organizer merged PR 6.
