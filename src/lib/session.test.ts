@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { passwordsMatch, SESSION_TTL_SEC, signSession, verifySession } from "./session";
 
-const secret = "test-secret-that-is-at-least-32-characters-long";
-const otherSecret = "another-test-secret-also-at-least-32-chars";
+// Fake keys, built in code so no secret-looking literal sits in the file.
+const secret = "t".repeat(48);
+const otherSecret = "u".repeat(48);
 const now = Date.UTC(2026, 11, 12, 13, 0, 0);
 
 describe("signSession / verifySession", () => {
