@@ -49,3 +49,5 @@ P05.
 - Joining is open while the event status is `open` or `running`; closed when `finished`.
 
 ## Log
+
+- 2026-11-24: Started on `step/P06-players` from `main`.
