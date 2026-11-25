@@ -14,8 +14,8 @@ Target: run the 2026-12-12 event (3 rounds) end to end in the app. The Hall da F
 | [P03](P03-core-pairing.md) | Core: pairing engine                     | done   | P02        | —                             |
 | [P04](P04-database.md)     | Database                                 | done   | P01        | —                             |
 | [P05](P05-admin-events.md) | Admin login and events                   | done   | P04        | —                             |
-| [P06](P06-players.md)      | Players: join, drop, late join           | review | P05        | —                             |
-| [P07](P07-rounds.md)       | Rounds: generate, review, publish, print | todo   | P03, P06   | —                             |
+| [P06](P06-players.md)      | Players: join, drop, late join           | done   | P05        | —                             |
+| [P07](P07-rounds.md)       | Rounds: generate, review, publish, print | review | P03, P06   | —                             |
 | [P08](P08-live-views.md)   | Live views and timer                     | todo   | P07        | —                             |
 | [P09](P09-results.md)      | Results and standings                    | todo   | P08        | —                             |
 | [P10](P10-export.md)       | Season export                            | todo   | P09        | —                             |

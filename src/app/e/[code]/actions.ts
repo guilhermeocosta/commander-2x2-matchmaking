@@ -8,7 +8,7 @@ import { dropAfterRound } from "@/core/players";
 import { rosterIdSchema } from "@/core/roster";
 import {
   getEventByCode,
-  getLatestRoundNumber,
+  getLatestPairedRoundNumber,
   swapDeviceTokenHash,
   updateEventPlayer,
 } from "@/db/queries";
@@ -102,7 +102,7 @@ export async function dropSelfAction(code: string): Promise<PlayerFormState> {
   if (player.droppedAfterRound !== null) return {};
 
   try {
-    const afterRound = dropAfterRound(await getLatestRoundNumber(event.id));
+    const afterRound = dropAfterRound(await getLatestPairedRoundNumber(event.id));
     await updateEventPlayer(event.id, player.id, { droppedAfterRound: afterRound });
     await audit({
       eventId: event.id,

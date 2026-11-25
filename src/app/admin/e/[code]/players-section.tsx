@@ -1,5 +1,5 @@
 import { MAX_PLAYERS_PER_EVENT, playerStatus } from "@/core/players";
-import { getLatestRoundNumber, listEventPlayers } from "@/db/queries";
+import { getLatestPairedRoundNumber, listEventPlayers } from "@/db/queries";
 import type { EventRow } from "@/db/schema";
 import { qrSvg, requestOrigin } from "@/lib/links";
 import { getRoster } from "@/lib/roster";
@@ -10,7 +10,7 @@ import { AddPlayerForm, PlayerRow, type AdminPlayer } from "./players-admin";
 export async function PlayersSection({ event }: { event: EventRow }) {
   const [players, latestRound, roster, origin] = await Promise.all([
     listEventPlayers(event.id),
-    getLatestRoundNumber(event.id),
+    getLatestPairedRoundNumber(event.id),
     getRoster(),
     requestOrigin(),
   ]);

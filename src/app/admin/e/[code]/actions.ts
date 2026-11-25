@@ -9,7 +9,7 @@ import { rosterIdSchema } from "@/core/roster";
 import {
   getEventByCode,
   getEventPlayer,
-  getLatestRoundNumber,
+  getLatestPairedRoundNumber,
   isUniqueViolation,
   updateEventPlayer,
 } from "@/db/queries";
@@ -179,7 +179,7 @@ export async function setDroppedAction(
   const dropped = parsed.data.dropped === "true";
 
   try {
-    const afterRound = dropped ? dropAfterRound(await getLatestRoundNumber(event.id)) : null;
+    const afterRound = dropped ? dropAfterRound(await getLatestPairedRoundNumber(event.id)) : null;
     const row = await updateEventPlayer(event.id, playerId, { droppedAfterRound: afterRound });
     if (!row) return { error: PLAYER_NOT_FOUND };
     await audit({

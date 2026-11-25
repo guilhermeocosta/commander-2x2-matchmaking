@@ -1,14 +1,14 @@
 import "server-only";
 
-import { randomInt } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 
-import { and, asc, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { generateEventCode } from "../core/event-code.ts";
 import type { RoundRecord, TableRecord } from "../core/types.ts";
 import { getDb } from "./index.ts";
-import { toRoundRecords, toTableRecord } from "./mappers.ts";
+import { toRoundRecords, toSeatRows, toTableRecord } from "./mappers.ts";
 import {
   auditLog,
   eventPlayers,
@@ -282,6 +282,21 @@ export async function getLatestRoundNumber(eventId: string): Promise<number> {
   return row?.number ?? 0;
 }
 
+/**
+ * The number of the latest round that is past `draft` (published or later), or 0. Drops and late
+ * joins count from this round: a draft isn't final, so a player who drops while round N is a
+ * draft leaves before round N, and one who joins then can play round N (after a re-roll).
+ */
+export async function getLatestPairedRoundNumber(eventId: string): Promise<number> {
+  const [row] = await getDb()
+    .select({ number: rounds.number })
+    .from(rounds)
+    .where(and(eq(rounds.eventId, eventId), ne(rounds.status, "draft")))
+    .orderBy(desc(rounds.number))
+    .limit(1);
+  return row?.number ?? 0;
+}
+
 /** The latest round of an event, or undefined before round 1 is generated. */
 export async function getLatestRound(eventId: string): Promise<RoundRow | undefined> {
   const [row] = await getDb()
@@ -334,6 +349,117 @@ export async function getRoundRecords(
   const included =
     throughRound === undefined ? roundRows : roundRows.filter((r) => r.number <= throughRound);
   return toRoundRecords(included, tableRows, seatRows);
+}
+
+/** Table and seat rows for a round's tables, numbered in the order given. */
+function tableAndSeatRows(roundId: string, records: readonly TableRecord[]) {
+  const tableRows = records.map((record, i) => ({
+    id: randomUUID(),
+    roundId,
+    number: i + 1,
+    kind: record.kind,
+  }));
+  const seatRows = records.flatMap((record, i) => toSeatRows(tableRows[i].id, roundId, record));
+  return { tableRows, seatRows };
+}
+
+/**
+ * Stores a new round as `draft` with its tables (in display order) and seats, in one
+ * transaction. Rejects (unique violation) when the event already has a round with that number.
+ */
+export async function insertDraftRound(input: {
+  eventId: string;
+  number: number;
+  seed: number;
+  durationSec: number;
+  tables: readonly TableRecord[];
+}): Promise<string> {
+  const db = getDb();
+  const roundId = randomUUID();
+  const { tableRows, seatRows } = tableAndSeatRows(roundId, input.tables);
+  await db.batch([
+    db.insert(rounds).values({
+      id: roundId,
+      eventId: input.eventId,
+      number: input.number,
+      status: "draft",
+      seed: input.seed,
+      durationSec: input.durationSec,
+    }),
+    db.insert(tables).values(tableRows),
+    db.insert(seats).values(seatRows),
+  ]);
+  return roundId;
+}
+
+/**
+ * Replaces every table and seat of a draft round in one transaction (re-roll or swap), and
+ * stores the new seed when given. If the round is no longer a draft, nothing is deleted, the
+ * insert hits the unique table number and the whole batch rolls back.
+ */
+export async function replaceDraftTables(
+  roundId: string,
+  records: readonly TableRecord[],
+  seed?: number
+): Promise<void> {
+  const db = getDb();
+  const draft = and(eq(rounds.id, roundId), eq(rounds.status, "draft"));
+  const { tableRows, seatRows } = tableAndSeatRows(roundId, records);
+  await db.batch([
+    // Seats go with their tables (cascade).
+    db
+      .delete(tables)
+      .where(
+        and(
+          eq(tables.roundId, roundId),
+          inArray(tables.roundId, db.select({ id: rounds.id }).from(rounds).where(draft))
+        )
+      ),
+    db.insert(tables).values(tableRows),
+    db.insert(seats).values(seatRows),
+    ...(seed === undefined ? [] : [db.update(rounds).set({ seed }).where(draft)]),
+  ]);
+}
+
+/**
+ * Publishes a draft round, and moves the event from `open` to `running` (round 1), in one
+ * transaction. Returns false when the round wasn't a draft any more.
+ */
+export async function publishRound(eventId: string, roundId: string): Promise<boolean> {
+  const db = getDb();
+  const [published] = await db.batch([
+    db
+      .update(rounds)
+      .set({ status: "published" })
+      .where(and(eq(rounds.id, roundId), eq(rounds.eventId, eventId), eq(rounds.status, "draft")))
+      .returning({ id: rounds.id }),
+    db
+      .update(events)
+      .set({ status: "running" })
+      .where(
+        and(
+          eq(events.id, eventId),
+          eq(events.status, "open"),
+          exists(
+            db
+              .select({ id: rounds.id })
+              .from(rounds)
+              .where(and(eq(rounds.eventId, eventId), ne(rounds.status, "draft")))
+          )
+        )
+      ),
+  ]);
+  return published.length > 0;
+}
+
+/** `running` → `finished`. Returns false when the event wasn't running. */
+export async function finishEvent(eventId: string): Promise<boolean> {
+  const rows = await getDb()
+    .update(events)
+    .set({ status: "finished" })
+    .where(and(eq(events.id, eventId), eq(events.status, "running")))
+    .returning({ id: events.id });
+  return rows.length > 0;
 }
 
 // ---------------------------------------------------------------------------------------------

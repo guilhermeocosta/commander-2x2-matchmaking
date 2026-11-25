@@ -1,7 +1,8 @@
 /**
  * Player lifecycle rules (see "Drops and late joins" in docs/rules.md). `latestRound` is the
- * number of the latest round that has been generated (paired) for the event, or 0 before
- * round 1 exists.
+ * number of the latest round that is past draft (published or later), or 0 before round 1 is
+ * published. A draft doesn't count: a drop or late join while round N is a draft applies to
+ * round N, which the admin then re-rolls.
  */
 
 /**
