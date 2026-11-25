@@ -5,6 +5,7 @@ import { randomInt } from "node:crypto";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { generateEventCode } from "../core/event-code.ts";
 import type { RoundRecord, TableRecord } from "../core/types.ts";
 import { getDb } from "./index.ts";
 import { toRoundRecords, toTableRecord } from "./mappers.ts";
@@ -95,6 +96,34 @@ export async function createEvent(input: NewEventInput): Promise<EventRow> {
     .values({ ...values, seed: newSeed() })
     .returning();
   return row;
+}
+
+/** True for a Postgres unique violation (SQLSTATE 23505), possibly wrapped by Drizzle. */
+function isUniqueViolation(error: unknown): boolean {
+  for (let e: unknown = error, i = 0; e && i < 3; e = (e as { cause?: unknown }).cause, i++) {
+    if ((e as { code?: unknown }).code === "23505") return true;
+  }
+  return false;
+}
+
+const CODE_ATTEMPTS = 10;
+
+/**
+ * Creates an event with a fresh random code (see src/core/event-code.ts), retrying on the rare
+ * collision with an existing code.
+ */
+export async function createEventWithNewCode(
+  input: Omit<NewEventInput, "code">
+): Promise<EventRow> {
+  for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
+    const code = generateEventCode(randomInt);
+    try {
+      return await createEvent({ ...input, code });
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+    }
+  }
+  throw new Error("Could not find a free event code");
 }
 
 // ---------------------------------------------------------------------------------------------
