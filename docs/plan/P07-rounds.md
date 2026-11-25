@@ -60,3 +60,4 @@ P03 (engine) and P06 (players).
   - Dev data left on the `dev` branch's `TEST` event: no rounds, status `open`, the 13 seeded players active, the five P06 players dropped, plus audit rows.
   - Follow-ups: round result entry and closing (P09) unlock "Gerar rodada 2" and "Encerrar evento"; the admin player list counts late joiners as "ativos" (P06 behavior).
 - 2026-11-24: The organizer confirmed the spec discrepancy above: the acceptance check now says 11 active players (two 2v2 tables, one 1v1 and one bye), matching `docs/rules.md`.
+- 2026-11-24: The organizer merged PR 8. Status set to `done`.

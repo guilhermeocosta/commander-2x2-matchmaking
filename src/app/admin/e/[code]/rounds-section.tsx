@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { EventRow } from "@/db/schema";
+import { loadEventState } from "@/lib/event-state";
 import { loadRoundsContext, type CurrentRound } from "@/lib/rounds";
 
 import {
@@ -10,8 +11,9 @@ import {
   tableTitle,
   turnOrder,
   warningMessage,
-} from "./round-copy";
+} from "@/lib/round-copy";
 import { RoundTables, type TableView } from "./round-tables";
+import { RoundTimerAdmin } from "./round-timer-admin";
 import {
   DraftActions,
   FinishEventButton,
@@ -41,7 +43,7 @@ export function tableViews(current: CurrentRound, name: (id: string) => string):
 
 /** The "Rodadas" section of the admin event panel. Rendered only after `requireAdmin()`. */
 export async function RoundsSection({ event }: { event: EventRow }) {
-  const ctx = await loadRoundsContext(event);
+  const [ctx, live] = await Promise.all([loadRoundsContext(event), loadEventState(event)]);
   const name = nameLookup(ctx.players);
   const { current, gate } = ctx;
   const round = current?.state.round;
@@ -79,8 +81,15 @@ export async function RoundsSection({ event }: { event: EventRow }) {
                 {roundStatusLabels[round.status]}
               </span>
               <Link
-                href={`/admin/e/${event.code}/print/${round.number}`}
+                href={`/e/${event.code}/display`}
                 className="btn btn-ghost btn-sm ml-auto"
+                target="_blank"
+              >
+                Telão
+              </Link>
+              <Link
+                href={`/admin/e/${event.code}/print/${round.number}`}
+                className="btn btn-ghost btn-sm"
               >
                 Imprimir
               </Link>
@@ -110,6 +119,10 @@ export async function RoundsSection({ event }: { event: EventRow }) {
                   </ul>
                 </div>
               </div>
+            )}
+
+            {!isDraft && live.round?.number === round.number && (
+              <RoundTimerAdmin code={event.code} initial={live} />
             )}
 
             <RoundTables tables={tableViews(current, name)} />

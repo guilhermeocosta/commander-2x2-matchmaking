@@ -5,22 +5,26 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { planRound, swapPlayers } from "@/core/rounds";
+import { applyTimerAction, elapsedMs, type TimerAction } from "@/core/timer";
 import {
   finishEvent,
   getEventByCode,
+  getLatestRound,
   getRoundRecords,
   insertDraftRound,
   isUniqueViolation,
   newSeed,
   publishRound,
   replaceDraftTables,
+  toTimerFields,
+  updateRoundTimer,
 } from "@/db/queries";
 import type { EventRow } from "@/db/schema";
 import { isAdmin, LOGIN_PATH } from "@/lib/auth";
 import { audit, GENERIC_ERROR } from "@/lib/players";
 import { loadRoundsContext, type RoundsContext } from "@/lib/rounds";
 
-import { generateBlockMessage } from "./round-copy";
+import { generateBlockMessage } from "@/lib/round-copy";
 
 /** State shown by the round forms; `error` and `ok` are pt-BR copy. */
 export interface RoundAdminState {
@@ -236,4 +240,60 @@ export async function finishEventAction(code: string): Promise<RoundAdminState> 
   }
   refresh();
   return { ok: "Evento encerrado." };
+}
+
+const timerSchema = z.object({
+  round: roundSchema.shape.round,
+  action: z.enum(["start", "pause", "resume", "add5"]),
+});
+
+const timerAudit: Record<TimerAction, string> = {
+  start: "round_timer_started",
+  pause: "round_timer_paused",
+  resume: "round_timer_resumed",
+  add5: "round_time_added",
+};
+
+/** Iniciar, Pausar, Retomar and +5 min for the latest round. */
+export async function roundTimerAction(
+  code: string,
+  _prev: RoundAdminState,
+  formData: FormData
+): Promise<RoundAdminState> {
+  const event = await adminEvent(code);
+  if (!event) return { error: EVENT_NOT_FOUND };
+  const parsed = timerSchema.safeParse({
+    round: formData.get("round"),
+    action: formData.get("action"),
+  });
+  if (!parsed.success) return { error: GENERIC_ERROR };
+  const { round, action } = parsed.data;
+
+  try {
+    const row = await getLatestRound(event.id);
+    if (!row || row.number !== round) return { error: STALE_PAGE };
+    const prev = toTimerFields(row);
+    const now = Date.now();
+    const change = applyTimerAction(prev, action, now);
+    if (!change.ok)
+      return { error: "Essa ação não vale para a rodada agora. Recarregue a página." };
+    // Another click (or tab) changed the clock first: nothing is written.
+    if (!(await updateRoundTimer(row.id, prev, change.next))) return { error: STALE_PAGE };
+    await audit({
+      eventId: event.id,
+      actor: "admin",
+      action: timerAudit[action],
+      payload: {
+        roundId: row.id,
+        round,
+        status: change.next.status,
+        elapsedSec: Math.floor(elapsedMs(change.next, now) / 1000),
+        durationSec: change.next.durationSec,
+      },
+    });
+  } catch {
+    return { error: GENERIC_ERROR };
+  }
+  refresh();
+  return {};
 }

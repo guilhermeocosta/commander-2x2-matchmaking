@@ -6,12 +6,13 @@ import { dropSelfAction, type PlayerFormState } from "./actions";
 
 const initialState: PlayerFormState = {};
 
-/** "Sair do evento" with an inline confirmation step. */
-export function DropButton({ code }: { code: string }) {
-  const [state, formAction, pending] = useActionState(
-    dropSelfAction.bind(null, code),
-    initialState
-  );
+/** "Sair do evento" with an inline confirmation step. `onDone` runs after the action. */
+export function DropButton({ code, onDone }: { code: string; onDone?: () => void }) {
+  const [state, formAction, pending] = useActionState(async () => {
+    const result = await dropSelfAction(code);
+    onDone?.();
+    return result;
+  }, initialState);
   const [confirming, setConfirming] = useState(false);
 
   if (!confirming) {

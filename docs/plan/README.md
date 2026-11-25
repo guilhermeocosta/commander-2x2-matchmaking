@@ -15,8 +15,8 @@ Target: run the 2026-12-12 event (3 rounds) end to end in the app. The Hall da F
 | [P04](P04-database.md)     | Database                                 | done   | P01        | —                             |
 | [P05](P05-admin-events.md) | Admin login and events                   | done   | P04        | —                             |
 | [P06](P06-players.md)      | Players: join, drop, late join           | done   | P05        | —                             |
-| [P07](P07-rounds.md)       | Rounds: generate, review, publish, print | review | P03, P06   | —                             |
-| [P08](P08-live-views.md)   | Live views and timer                     | todo   | P07        | —                             |
+| [P07](P07-rounds.md)       | Rounds: generate, review, publish, print | done   | P03, P06   | —                             |
+| [P08](P08-live-views.md)   | Live views and timer                     | review | P07        | —                             |
 | [P09](P09-results.md)      | Results and standings                    | todo   | P08        | —                             |
 | [P10](P10-export.md)       | Season export                            | todo   | P09        | —                             |
 | [P11](P11-dry-run.md)      | Dry run and runbook                      | todo   | P10        | Yes: phones, testers          |

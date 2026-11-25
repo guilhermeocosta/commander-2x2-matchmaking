@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { canStillPlay, isEventFull, playerStatus } from "@/core/players";
+import { canStillPlay, isEventFull } from "@/core/players";
 import { getEventByCode, getLatestPairedRoundNumber, listEventPlayers } from "@/db/queries";
+import { loadEventState } from "@/lib/event-state";
 import { getCurrentPlayer } from "@/lib/player-session";
 import { EVENT_FULL, isJoinable } from "@/lib/players";
 import { getRoster } from "@/lib/roster";
 
-import { DropButton } from "./drop-button";
 import { JoinForm } from "./join-form";
+import { LiveRoundCard } from "./live-round";
 
 export const metadata: Metadata = { title: "Evento · Commander 2x2" };
 
@@ -28,31 +29,7 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
 
   let body: React.ReactNode;
   if (player) {
-    const status = playerStatus(player, latestRound);
-    body = (
-      <section className="card bg-base-200">
-        <div className="card-body gap-4">
-          <p>
-            Você está inscrito como{" "}
-            <strong className="text-lg break-words text-primary">{player.displayName}</strong>
-          </p>
-          {status.kind === "dropped" ? (
-            <div role="status" className="alert alert-warning alert-soft">
-              Você saiu do evento. Para voltar, fale com a organização.
-            </div>
-          ) : (
-            <>
-              <p className="text-base-content/70">
-                {status.kind === "late"
-                  ? `Você entra na rodada ${status.round}. Aguarde o pareamento.`
-                  : "Aguarde o pareamento da rodada."}
-              </p>
-              <DropButton code={event.code} />
-            </>
-          )}
-        </div>
-      </section>
-    );
+    body = <LiveRoundCard code={event.code} initial={await loadEventState(event)} />;
   } else if (!isJoinable(event)) {
     body = <Notice>As inscrições deste evento estão encerradas.</Notice>;
   } else if (!canStillPlay(latestRound, event.rounds)) {
