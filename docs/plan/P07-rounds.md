@@ -36,7 +36,7 @@ P03 (engine) and P06 (players).
 ## Acceptance checks
 
 - `pnpm check` green.
-- With the seeded `TEST` event (13 players): round 1 has two 2v2 tables, one 1v1 and one bye.
+- With the seeded `TEST` event and 11 active players (drop two of its 13): round 1 has two 2v2 tables, one 1v1 and one bye.
 - Re-roll produces a different seating; same seed reproduces the same seating.
 - Swapping two players updates seats and warnings.
 - The print page prints legibly on A4 (screen stays dark).
@@ -59,3 +59,4 @@ P03 (engine) and P06 (players).
   - Verified in the browser pane against `next dev` on the Neon `dev` branch: dropped the five P06 test players through the app (13 active); generated round 1 (three 2v2 + bye); re-roll changed the seating; dropping two players showed the stale-draft warning, and re-rolling gave two 2v2 + 1v1 + bye; swapped the bye player with a 1v1 player; published (event → "Em andamento", "Gerar rodada 2" disabled until round 1 closes). Then closed round 1 with results directly in the `dev` database (P09 does this in the app), generated round 2 with points shown, and a swap raised two "já jogaram em dupla" warnings. 375 px has no horizontal scroll; the print page is legible with the print rules applied (black on white, controls hidden). Same seed → same seating is covered by a test.
   - Dev data left on the `dev` branch's `TEST` event: no rounds, status `open`, the 13 seeded players active, the five P06 players dropped, plus audit rows.
   - Follow-ups: round result entry and closing (P09) unlock "Gerar rodada 2" and "Encerrar evento"; the admin player list counts late joiners as "ativos" (P06 behavior).
+- 2026-11-24: The organizer confirmed the spec discrepancy above: the acceptance check now says 11 active players (two 2v2 tables, one 1v1 and one bye), matching `docs/rules.md`.
