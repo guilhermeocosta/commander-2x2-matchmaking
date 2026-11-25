@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { canStillPlay, dropAfterRound, joinRound, playerStatus } from "./players";
+import {
+  canStillPlay,
+  dropAfterRound,
+  isEventFull,
+  joinRound,
+  MAX_PLAYERS_PER_EVENT,
+  playerStatus,
+} from "./players";
 
 describe("late join", () => {
   it("joins round 1 before any round is paired", () => {
@@ -50,5 +57,14 @@ describe("playerStatus", () => {
     expect(playerStatus({ joinedRound: 2, droppedAfterRound: null }, 2)).toEqual({
       kind: "active",
     });
+  });
+});
+
+describe("player cap", () => {
+  it("takes up to 40 players", () => {
+    expect(MAX_PLAYERS_PER_EVENT).toBe(40);
+    expect(isEventFull(39)).toBe(false);
+    expect(isEventFull(40)).toBe(true);
+    expect(isEventFull(41)).toBe(true);
   });
 });

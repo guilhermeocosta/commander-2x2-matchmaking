@@ -5,6 +5,17 @@
  */
 
 /**
+ * Most players an event takes, dropped players included. Well above the biggest event so far;
+ * it stops a script from flooding the list through the public join page.
+ */
+export const MAX_PLAYERS_PER_EVENT = 40;
+
+/** True once an event has as many players as it can take. */
+export function isEventFull(playerCount: number): boolean {
+  return playerCount >= MAX_PLAYERS_PER_EVENT;
+}
+
+/**
  * The first round a player joining now can play: the next round that hasn't been paired yet.
  * Before round 1 is paired that is round 1.
  */

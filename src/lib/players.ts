@@ -1,9 +1,10 @@
 import "server-only";
 
-import { canStillPlay, joinRound } from "@/core/players";
+import { canStillPlay, isEventFull, joinRound, MAX_PLAYERS_PER_EVENT } from "@/core/players";
 import type { RosterEntry } from "@/core/roster";
 import {
   addEventPlayer,
+  countEventPlayers,
   getLatestRoundNumber,
   isUniqueViolation,
   writeAudit,
@@ -22,6 +23,7 @@ export const JOIN_CLOSED = "As inscrições deste evento estão encerradas.";
 export const NO_ROUNDS_LEFT = "Todas as rodadas já foram pareadas; não dá mais para entrar.";
 export const ROSTER_TAKEN = "Esse jogador já está inscrito neste evento.";
 export const ROSTER_UNKNOWN = "Nome não encontrado na lista de jogadores.";
+export const EVENT_FULL = `O evento já tem ${MAX_PLAYERS_PER_EVENT} jogadores, o limite.`;
 export const GENERIC_ERROR = "Algo deu errado. Tente de novo.";
 
 /** Joining (or being added) is open while the event is `open` or `running`. */
@@ -35,7 +37,9 @@ export function findRosterEntry(roster: RosterEntry[], id: string): RosterEntry 
 
 /**
  * Adds a player, entering the next round that hasn't been paired yet (late join). Fails when
- * the event is finished, every round is already paired, or the roster id is taken.
+ * the event is finished or full, every round is already paired, or the roster id is taken.
+ * The cap is checked before the insert, not in the same statement: two joins at the same
+ * instant could both pass at 39 players. That's acceptable for a spam guard.
  */
 export async function addPlayer(
   event: EventRow,
@@ -43,7 +47,11 @@ export async function addPlayer(
 ): Promise<Result<EventPlayerRow>> {
   if (!isJoinable(event)) return { ok: false, error: JOIN_CLOSED };
   try {
-    const latest = await getLatestRoundNumber(event.id);
+    const [latest, players] = await Promise.all([
+      getLatestRoundNumber(event.id),
+      countEventPlayers(event.id),
+    ]);
+    if (isEventFull(players)) return { ok: false, error: EVENT_FULL };
     if (!canStillPlay(latest, event.rounds)) return { ok: false, error: NO_ROUNDS_LEFT };
     const player = await addEventPlayer({
       eventId: event.id,

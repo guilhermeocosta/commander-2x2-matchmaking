@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomInt } from "node:crypto";
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { generateEventCode } from "../core/event-code.ts";
@@ -136,6 +136,15 @@ export async function listEventPlayers(eventId: string): Promise<EventPlayerRow[
     .from(eventPlayers)
     .where(eq(eventPlayers.eventId, eventId))
     .orderBy(asc(eventPlayers.createdAt), asc(eventPlayers.id));
+}
+
+/** Every player of an event, dropped ones included. */
+export async function countEventPlayers(eventId: string): Promise<number> {
+  const [row] = await getDb()
+    .select({ n: count() })
+    .from(eventPlayers)
+    .where(eq(eventPlayers.eventId, eventId));
+  return row?.n ?? 0;
 }
 
 export async function addEventPlayer(input: NewEventPlayerInput): Promise<EventPlayerRow> {

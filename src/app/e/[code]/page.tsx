@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { canStillPlay, playerStatus } from "@/core/players";
+import { canStillPlay, isEventFull, playerStatus } from "@/core/players";
 import { getEventByCode, getLatestRoundNumber, listEventPlayers } from "@/db/queries";
 import { getCurrentPlayer } from "@/lib/player-session";
-import { isJoinable } from "@/lib/players";
+import { EVENT_FULL, isJoinable } from "@/lib/players";
 import { getRoster } from "@/lib/roster";
 
 import { DropButton } from "./drop-button";
@@ -60,7 +60,9 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
   } else {
     const [roster, players] = await Promise.all([getRoster(), listEventPlayers(event.id)]);
     const taken = new Set(players.map((p) => p.rosterId).filter((id) => id !== null));
-    body = (
+    body = isEventFull(players.length) ? (
+      <Notice>{EVENT_FULL} Fale com a organização.</Notice>
+    ) : (
       <section className="card bg-base-200">
         <div className="card-body gap-4">
           <h2 className="card-title">Entrar no evento</h2>

@@ -1,4 +1,4 @@
-import { playerStatus } from "@/core/players";
+import { MAX_PLAYERS_PER_EVENT, playerStatus } from "@/core/players";
 import { getLatestRoundNumber, listEventPlayers } from "@/db/queries";
 import type { EventRow } from "@/db/schema";
 import { qrSvg, requestOrigin } from "@/lib/links";
@@ -35,7 +35,7 @@ export async function PlayersSection({ event }: { event: EventRow }) {
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="card-title">Jogadores</h2>
           <span className="text-sm text-base-content/70">
-            {active} {active === 1 ? "ativo" : "ativos"} · {rows.length} no total
+            {active} {active === 1 ? "ativo" : "ativos"} · {rows.length} de {MAX_PLAYERS_PER_EVENT}
           </span>
         </div>
 
