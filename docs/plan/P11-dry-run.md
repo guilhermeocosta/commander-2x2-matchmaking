@@ -17,7 +17,7 @@ P10.
 
 ### In
 
-- Organizer-assisted dry run on production (a throwaway event): 13 participants across real phones and browser tabs, so round 1 has two 2v2 tables, a 1v1 and a bye. Cover: QR join, roster pick and new name, a late join before round 2, a drop before round 3, re-roll and swap, timer pause/+5/overtime, reports from phones, one admin override, 1v1 1–1 draw, standings, finish, export.
+- Organizer-assisted dry run on production (a throwaway event): 11 participants across real phones and browser tabs, so round 1 has two 2v2 tables, a 1v1 and a bye (11 mod 4 = 3). Cover: QR join, roster pick and new name, a late join before round 2, a drop before round 3, re-roll and swap, timer pause/+5/overtime, reports from phones, one admin override, 1v1 1–1 draw, standings, finish, export.
 - Fix blocking bugs found (small, scoped commits; anything large goes back to its step as a redo).
 - `docs/runbook.md` (pt-BR): before the event (create event, test login, charge phone, hotspot, Companion installed as fallback, printer), each round (generate → review → publish → print → start timer → watch results → close), failure plan (continue on paper, enter results later as overrides), after the event (finish, export, open the site PR, collect decklists).
 - Delete the dry-run event data after the run (or mark it clearly as a test).
