@@ -46,3 +46,5 @@ P03 (engine) and P06 (players).
 - Print CSS is the only place a light background is allowed, because paper is white.
 
 ## Log
+
+- 2026-11-24: Started on `step/P07-rounds` from `main`.
