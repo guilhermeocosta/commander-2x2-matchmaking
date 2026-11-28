@@ -41,3 +41,5 @@ P10.
 - Freeze after this step: only critical fixes before the event.
 
 ## Log
+
+- 2026-11-28: Started on `step/P11-dry-run` from `main`.
