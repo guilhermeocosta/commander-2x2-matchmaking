@@ -47,3 +47,5 @@ P08.
 - Reporting must work with one tap on a phone in a noisy store: big buttons, clear confirmation.
 
 ## Log
+
+- 2026-11-27: Started on `step/P09-results` from `main`.
