@@ -41,3 +41,6 @@ P10.
 - Freeze after this step: only critical fixes before the event.
 
 ## Log
+
+- 2026-11-28: Started on `step/P11-dry-run` from `main`.
+- 2026-11-28: Preparation. Production `/api/health` returns `{"ok":true,"db":"up"}` from `gru1`, and the Vercel status on `main`'s head (`7b7f2a5`, P10) is `success`. The only migration is `0000_init`, applied to production in P04, so nothing is pending. Wrote `docs/dry-run.md` (pt-BR script: 11 participants plus a late joiner, every in-scope check, cleanup) and a draft `docs/runbook.md`. The round time is fixed at 50 minutes in the app, so the script reaches overtime quickly with one `UPDATE events SET round_duration_sec = 120` on the test event before round 3 (time only, no results), or by waiting. The app has no event delete; the script names the event `[TESTE] …` and gives a checked `DELETE FROM events WHERE code = …` (cascades to players, rounds, tables, seats and audit rows). Waiting for the organizer's dry run.
