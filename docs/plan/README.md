@@ -6,20 +6,20 @@ Target: run the 2026-12-12 event (3 rounds) end to end in the app. The Hall da F
 
 ## Status
 
-| Step                       | Title                                    | Status | Depends on | Needs the organizer           |
-| -------------------------- | ---------------------------------------- | ------ | ---------- | ----------------------------- |
-| [P00](P00-setup.md)        | Setup                                    | done   | —          | —                             |
-| [P01](P01-infra.md)        | Infra and deploy                         | done   | P00        | Yes: Vercel, Neon, Cloudflare |
-| [P02](P02-core-rules.md)   | Core: results and standings              | done   | P00        | —                             |
-| [P03](P03-core-pairing.md) | Core: pairing engine                     | done   | P02        | —                             |
-| [P04](P04-database.md)     | Database                                 | done   | P01        | —                             |
-| [P05](P05-admin-events.md) | Admin login and events                   | done   | P04        | —                             |
-| [P06](P06-players.md)      | Players: join, drop, late join           | done   | P05        | —                             |
-| [P07](P07-rounds.md)       | Rounds: generate, review, publish, print | done   | P03, P06   | —                             |
-| [P08](P08-live-views.md)   | Live views and timer                     | done   | P07        | —                             |
-| [P09](P09-results.md)      | Results and standings                    | review | P08        | —                             |
-| [P10](P10-export.md)       | Season export                            | todo   | P09        | —                             |
-| [P11](P11-dry-run.md)      | Dry run and runbook                      | todo   | P10        | Yes: phones, testers          |
+| Step                       | Title                                    | Status      | Depends on | Needs the organizer           |
+| -------------------------- | ---------------------------------------- | ----------- | ---------- | ----------------------------- |
+| [P00](P00-setup.md)        | Setup                                    | done        | —          | —                             |
+| [P01](P01-infra.md)        | Infra and deploy                         | done        | P00        | Yes: Vercel, Neon, Cloudflare |
+| [P02](P02-core-rules.md)   | Core: results and standings              | done        | P00        | —                             |
+| [P03](P03-core-pairing.md) | Core: pairing engine                     | done        | P02        | —                             |
+| [P04](P04-database.md)     | Database                                 | done        | P01        | —                             |
+| [P05](P05-admin-events.md) | Admin login and events                   | done        | P04        | —                             |
+| [P06](P06-players.md)      | Players: join, drop, late join           | done        | P05        | —                             |
+| [P07](P07-rounds.md)       | Rounds: generate, review, publish, print | done        | P03, P06   | —                             |
+| [P08](P08-live-views.md)   | Live views and timer                     | done        | P07        | —                             |
+| [P09](P09-results.md)      | Results and standings                    | done        | P08        | —                             |
+| [P10](P10-export.md)       | Season export                            | in_progress | P09        | —                             |
+| [P11](P11-dry-run.md)      | Dry run and runbook                      | todo        | P10        | Yes: phones, testers          |
 
 ## Dependency graph
 

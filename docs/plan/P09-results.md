@@ -60,3 +60,4 @@ P08.
   - As in P08, testing from `127.0.0.1` needed `allowedDevOrigins: ["127.0.0.1"]` in `next.config.ts`; added only for the test, not committed.
   - Dev data left on the `dev` branch's `TEST` event: rounds 1–3 closed with results, event `finished`, new player Atrasado P09 (joined round 2), new device tokens for Teste 08 and 11, plus audit rows. Reseed or create a new event before the next test.
   - Follow-ups: P10 exports from these results; consider committing `allowedDevOrigins` for local two-context testing; the "Encerrar rodada" success message disappears with the button once the round closes (the unlocked "Gerar rodada N+1" is the feedback).
+- 2026-11-27: The organizer merged PR 11; status set to `done`.

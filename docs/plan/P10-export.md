@@ -40,3 +40,5 @@ P09.
 - Keep the JSON formatting compatible with the site's Prettier (2-space indent, trailing newline).
 
 ## Log
+
+- 2026-11-27: Started on `step/P10-export` from `main`.
