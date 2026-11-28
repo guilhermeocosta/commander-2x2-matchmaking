@@ -8,6 +8,7 @@ import { loadEventState } from "@/lib/event-state";
 import { getCurrentPlayer } from "@/lib/player-session";
 import { EVENT_FULL, isJoinable } from "@/lib/players";
 import { getRoster } from "@/lib/roster";
+import { loadStandings } from "@/lib/standings";
 
 import { JoinForm } from "./join-form";
 import { LiveRoundCard } from "./live-round";
@@ -29,7 +30,8 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
 
   let body: React.ReactNode;
   if (player) {
-    body = <LiveRoundCard code={event.code} initial={await loadEventState(event)} />;
+    const [initial, standings] = await Promise.all([loadEventState(event), loadStandings(event)]);
+    body = <LiveRoundCard code={event.code} initial={initial} initialStandings={standings} />;
   } else if (!isJoinable(event)) {
     body = <Notice>As inscrições deste evento estão encerradas.</Notice>;
   } else if (!canStillPlay(latestRound, event.rounds)) {

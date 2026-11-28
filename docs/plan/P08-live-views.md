@@ -59,3 +59,4 @@ P07.
   - Testing from `127.0.0.1` needs `allowedDevOrigins: ["127.0.0.1"]` in `next.config.ts` (Next dev blocks the page scripts otherwise). I added it only for the test and did not commit it.
   - Dev data left on the `dev` branch's `TEST` event: round 1 published and running (+5 min), status `running`, Teste 12 and 13 dropped, new device tokens for Teste 08 and 11, plus audit rows.
   - Follow-ups: P09 closes rounds and reports results (the player view shows "Rodada N encerrada" between rounds); consider committing `allowedDevOrigins` for local two-context testing.
+- 2026-11-27: The organizer merged PR 10; status set to `done`.

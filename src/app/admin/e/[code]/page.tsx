@@ -3,15 +3,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getEventByCode } from "@/db/queries";
+import { StandingsTable } from "@/components/standings-table";
 import { requireAdmin } from "@/lib/auth";
+import { loadStandings } from "@/lib/standings";
 
 import { AdminHeader, EventStatusBadge, formatEventDate } from "../../ui";
 import { PlayersSection } from "./players-section";
 import { RoundsSection } from "./rounds-section";
 
 export const metadata: Metadata = { title: "Evento · Admin · Commander 2x2" };
-
-const sections = [{ id: "classificacao", title: "Classificação" }];
 
 // Check the session before rendering anything, so logged-out visits get a real 307.
 export const instant = false;
@@ -50,14 +50,12 @@ export default async function AdminEventPage({ params }: PageProps<"/admin/e/[co
 
         <RoundsSection event={event} />
 
-        {sections.map((section) => (
-          <section key={section.id} id={section.id} className="card bg-base-200">
-            <div className="card-body">
-              <h2 className="card-title">{section.title}</h2>
-              <p className="text-base-content/70">Em breve.</p>
-            </div>
-          </section>
-        ))}
+        <section id="classificacao" className="card bg-base-200">
+          <div className="card-body gap-3">
+            <h2 className="card-title">Classificação</h2>
+            <StandingsTable standings={await loadStandings(event)} />
+          </div>
+        </section>
       </main>
     </>
   );
