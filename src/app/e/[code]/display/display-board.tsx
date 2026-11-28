@@ -158,8 +158,9 @@ function StandingsBoard({ standings, finished }: { standings: EventStandings; fi
   const lines = Math.max(perColumn, 8) + 1;
   return (
     <div
-      className="grid min-h-0 flex-1 content-start gap-[3vw]"
+      className="mx-auto grid min-h-0 w-full flex-1 content-start gap-[3vw]"
       style={{
+        maxWidth: columns.length === 1 ? "36em" : undefined,
         gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`,
         fontSize: `min(${(70 / lines).toFixed(2)}vh, ${(columns.length === 1 ? 3 : 1.6).toFixed(2)}vw)`,
       }}

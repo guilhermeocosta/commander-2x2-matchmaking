@@ -147,7 +147,7 @@ function TwoVsTwoButtons({
       sub: `${names.B}${myTeam === "B" ? " (sua dupla)" : ""}`,
       color: "btn-info",
     },
-    { value: "draw", label: "Empate", sub: "Fim dos turnos extras", color: "btn-neutral" },
+    { value: "draw", label: "Empate", sub: "Fim dos turnos extras", color: "btn-secondary" },
   ];
   return (
     <div className="flex flex-col gap-2">
@@ -169,7 +169,9 @@ function TwoVsTwoButtons({
               {selected && "✓ "}
               {o.label}
             </span>
-            <span className="max-w-full truncate text-sm font-normal opacity-80">{o.sub}</span>
+            <span className="text-sm font-normal break-words whitespace-normal opacity-80">
+              {o.sub}
+            </span>
           </button>
         );
       })}

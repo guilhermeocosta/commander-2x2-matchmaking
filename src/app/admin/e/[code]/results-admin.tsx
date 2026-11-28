@@ -147,21 +147,14 @@ function TableResultCard({
               )}
             </p>
           ) : (
-            <p className="text-sm text-warning">Sem resultado</p>
+            <p className="text-sm text-base-content/60">Aguardando o resultado</p>
           )}
           <details className="collapse-arrow collapse bg-base-200">
             <summary className="collapse-title min-h-0 py-2 text-sm font-medium">
               Alterar resultado
             </summary>
             <div className="collapse-content flex flex-col gap-4">
-              <OverrideForm
-                key={`${result?.outcome}:${result?.games?.a}:${result?.games?.b}`}
-                code={code}
-                round={round}
-                table={table}
-                names={names}
-                onDone={onDone}
-              />
+              <OverrideForm code={code} round={round} table={table} names={names} onDone={onDone} />
               <PlayerLeftForm code={code} round={round} table={table} onDone={onDone} />
             </div>
           </details>
@@ -198,7 +191,7 @@ function OverrideForm({
             [
               ["A", "A venceu", "btn-primary"],
               ["B", "B venceu", "btn-info"],
-              ["draw", "Empate", "btn-neutral"],
+              ["draw", "Empate", "btn-secondary"],
             ] as const
           ).map(([value, label, color]) => (
             <button
@@ -214,7 +207,7 @@ function OverrideForm({
           ))}
         </div>
       ) : (
-        <div className="flex flex-wrap items-end gap-2">
+        <div key={`${games?.a}:${games?.b}`} className="flex flex-wrap items-end gap-2">
           {(["A", "B"] as const).map((team) => (
             <label key={team} className="flex min-w-0 flex-1 flex-col gap-1 text-xs">
               <span className="truncate">Jogos de {names[team]}</span>

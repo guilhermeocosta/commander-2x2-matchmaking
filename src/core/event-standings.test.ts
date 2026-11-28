@@ -139,6 +139,23 @@ describe("eventStandings: seeded 3-round event", () => {
     expect(afterRound1?.rows.find((r) => r.name === "Eva")).toMatchObject({ points: 1, draws: 1 });
   });
 
+  it("leaves out a player who dropped before their first round", () => {
+    const withEarlyDrops: StandingsPlayer[] = [
+      ...players,
+      { id: "ivo", displayName: "Ivo", joinedRound: 1, droppedAfterRound: 0 },
+      { id: "jade", displayName: "Jade", joinedRound: 3, droppedAfterRound: 2 },
+    ];
+    const names = eventStandings({
+      players: withEarlyDrops,
+      rounds,
+      seed: 12345,
+      throughRound: 3,
+    })?.rows.map((r) => r.name);
+    expect(names).toHaveLength(8);
+    expect(names).not.toContain("Ivo");
+    expect(names).not.toContain("Jade");
+  });
+
   it("is null before any round closed", () => {
     expect(eventStandings({ players, rounds, seed: 1, throughRound: 0 })).toBeNull();
   });

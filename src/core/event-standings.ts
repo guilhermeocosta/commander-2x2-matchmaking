@@ -34,7 +34,8 @@ export interface StandingsPlayer {
 /**
  * Standings after round `throughRound` (the last closed one), or null before any round closed.
  * Ranks every player who could have played by then, dropped ones included; a late joiner who
- * hasn't entered yet is left out. Only rounds up to `throughRound` count.
+ * hasn't entered yet, and a player who dropped before their first round, are left out. Only
+ * rounds up to `throughRound` count.
  */
 export function eventStandings(input: {
   players: readonly StandingsPlayer[];
@@ -45,7 +46,7 @@ export function eventStandings(input: {
   const { players, seed, throughRound } = input;
   if (throughRound < 1) return null;
   const rounds = input.rounds.filter((r) => r.round <= throughRound);
-  const eligible = players.filter((p) => p.joinedRound <= throughRound);
+  const eligible = players.filter((p) => playedAnyRound(p, throughRound));
   const byId = new Map(eligible.map((p) => [p.id, p]));
   const rows = standings(
     eligible.map((p) => p.id),
@@ -65,6 +66,12 @@ export function eventStandings(input: {
     };
   });
   return { throughRound, rows };
+}
+
+/** True when the player was due to play at least one round up to `throughRound`. */
+function playedAnyRound(player: StandingsPlayer, throughRound: number): boolean {
+  const lastRound = Math.min(player.droppedAfterRound ?? throughRound, throughRound);
+  return player.joinedRound <= lastRound;
 }
 
 /** "2-1-0" (V-E-D). */
