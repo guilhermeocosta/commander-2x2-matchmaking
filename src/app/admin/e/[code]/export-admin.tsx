@@ -52,13 +52,16 @@ function ExportResult({ data }: { data: ExportData }) {
       </p>
 
       {data.newPlayers.length > 0 && (
-        <div role="alert" className="alert alert-warning alert-soft flex-col items-start gap-2">
+        <div
+          role="alert"
+          className="flex flex-col gap-2 rounded-box border border-warning/40 bg-warning/10 p-4 text-warning"
+        >
           <p className="font-semibold">Jogadores novos: revise antes de publicar</p>
-          <p className="text-sm">
+          <p className="text-sm text-base-content/80">
             Não estavam no ranking. Confira o nome e o id; se algum já existe com outro nome, junte
             as estatísticas à mão.
           </p>
-          <ul className="flex flex-col gap-1 text-sm">
+          <ul className="flex flex-col gap-1 text-sm text-base-content">
             {data.newPlayers.map((p) => (
               <li key={p.id} className="break-words">
                 <span className="font-medium">{p.name}</span>{" "}
