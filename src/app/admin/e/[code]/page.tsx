@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/auth";
 import { loadStandings } from "@/lib/standings";
 
 import { AdminHeader, EventStatusBadge, formatEventDate } from "../../ui";
+import { ExportSection } from "./export-section";
 import { PlayersSection } from "./players-section";
 import { RoundsSection } from "./rounds-section";
 
@@ -56,6 +57,8 @@ export default async function AdminEventPage({ params }: PageProps<"/admin/e/[co
             <StandingsTable standings={await loadStandings(event)} />
           </div>
         </section>
+
+        <ExportSection event={event} />
       </main>
     </>
   );
