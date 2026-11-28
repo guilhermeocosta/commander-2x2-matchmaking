@@ -43,17 +43,18 @@ src/
 
 ## Routes (planned)
 
-| Route                           | Who     | What                                                              |
-| ------------------------------- | ------- | ----------------------------------------------------------------- |
-| `/`                             | anyone  | Enter an event code                                               |
-| `/e/[code]`                     | player  | Join, then: my seat, timer, report result, standings              |
-| `/e/[code]/entrar`              | player  | Claim a link the admin reissued (token in the URL fragment)       |
-| `/e/[code]/display`             | anyone  | Projector: pairings in large type + timer                         |
-| `/api/e/[code]/state`           | clients | JSON snapshot for polling (`no-store`, includes server `now`)     |
-| `/admin/login`                  | admin   | Password login                                                    |
-| `/admin`                        | admin   | Event list, create event                                          |
-| `/admin/e/[code]`               | admin   | Control panel: players, rounds, timer, results, standings, export |
-| `/admin/e/[code]/print/[round]` | admin   | Printable pairings for one round                                  |
+| Route                           | Who     | What                                                                |
+| ------------------------------- | ------- | ------------------------------------------------------------------- |
+| `/`                             | anyone  | Enter an event code                                                 |
+| `/e/[code]`                     | player  | Join, then: my seat, timer, report result, standings                |
+| `/e/[code]/entrar`              | player  | Claim a link the admin reissued (token in the URL fragment)         |
+| `/e/[code]/display`             | anyone  | Projector: pairings in large type + timer; standings between rounds |
+| `/api/e/[code]/state`           | clients | JSON snapshot for polling (`no-store`, includes server `now`)       |
+| `/api/e/[code]/standings`       | clients | JSON standings after the last closed round (`no-store`)             |
+| `/admin/login`                  | admin   | Password login                                                      |
+| `/admin`                        | admin   | Event list, create event                                            |
+| `/admin/e/[code]`               | admin   | Control panel: players, rounds, timer, results, standings, export   |
+| `/admin/e/[code]/print/[round]` | admin   | Printable pairings for one round                                    |
 
 ## Data model
 
@@ -97,6 +98,8 @@ Constraints worth knowing:
 - `useEventState(code)` (`src/lib/use-event-state.ts`) polls it every 5 seconds while the page is visible, refetches on focus and after mutations, keeps the last good snapshot when a poll fails and shows "sem conexão". The player page (`/e/[code]`), the projector (`/e/[code]/display`, no login) and the admin clock use it.
 - The timer is computed on each client by `src/core/timer.ts` from `started_at` (start of the current running stretch), `paused_at` (set while paused), `elapsed_before_pause_sec` (whole seconds run before that stretch) and `duration_sec`. Clients correct their clock with an offset from the round trip with the shortest latency among the last few polls.
 - Admin controls: Iniciar (`published` → `running`), Pausar, Retomar, +5 min. +5 min in overtime gives 5 minutes from now. A write only lands if the clock is still the one the admin saw.
+- Each table in the snapshot carries its result (`status` none / reported / overridden, outcome, 1v1 games, the reporter's display name), so players and the admin grid see reports within one poll.
+- Standings are not in the snapshot: they change only when a round closes. `GET /api/e/[code]/standings` returns them (`src/core/event-standings.ts`, from the closed rounds), and `useStandings` (`src/lib/use-standings.ts`) refetches when the round number or closed state changes, on focus, and every 30 s on the display between rounds.
 - At 0:00 the round shows overtime: "turno atual + 3" at 2v2 tables, "turno atual + 5" at the 1v1 table. The first snapshot after that moves the stored status from `running` to `overtime` (a conditional update, audited as `system`).
 
 ## Identity and security
@@ -105,5 +108,6 @@ Constraints worth knowing:
 - **Players:** no accounts. Joining sets an httpOnly, Secure, SameSite=Lax cookie `c2x2_p_<CODE>` (one per event) holding 32 random bytes; the database stores only its SHA-256 (`device_token_hash`). `getCurrentPlayer()` in `src/lib/player-session.ts` is the only way to learn who a player is, so players act only on their own seat. A device that already joined an event can't join it again; a roster id joins an event once. An event takes at most 40 players (`MAX_PLAYERS_PER_EVENT`), which stops the public join page from being flooded.
 - **Reissued links:** when a phone dies, the admin generates `/e/CODE/entrar#<token>`, shown as a QR code and a URL. The old device stops working at once. The token sits in the URL fragment, which browsers never send in a request, and the page posts it to a Server Action only when the player taps "Entrar neste aparelho". Claiming swaps it for a fresh token in one statement, so each link works once.
 - **Roster:** fetched server-side from `https://raw.githubusercontent.com/guilhermeocosta/commander-2x2/main/src/data/leaderboard.json` (`src/lib/roster.ts`), validated with Zod, and cached for 1 hour with `"use cache"`. Failures aren't cached, and the roster is then empty: players join by typing a name.
-- **Audit:** every player change is written to `audit_log` with ids only (no names or tokens): `player_joined`, `player_added`, `player_renamed`, `player_roster_linked`/`_unlinked`, `player_dropped`, `player_drop_undone`, `player_link_reissued`, `player_link_claimed`. Round changes too: `round_generated`, `round_rerolled` (with the new and previous seed), `round_players_swapped`, `round_published`, `event_finished`. Timer changes: `round_timer_started`, `round_timer_paused`, `round_timer_resumed`, `round_time_added` (admin) and `round_overtime_started` (system), each with the round's status, elapsed and duration.
+- **Audit:** every player change is written to `audit_log` with ids only (no names or tokens): `player_joined`, `player_added`, `player_renamed`, `player_roster_linked`/`_unlinked`, `player_dropped`, `player_drop_undone`, `player_link_reissued`, `player_link_claimed`. Round changes too: `round_generated`, `round_rerolled` (with the new and previous seed), `round_players_swapped`, `round_published`, `event_finished`. Timer changes: `round_timer_started`, `round_timer_paused`, `round_timer_resumed`, `round_time_added` (admin) and `round_overtime_started` (system), each with the round's status, elapsed and duration. Results: `result_reported` (player), `result_overridden` and `result_player_left` (admin; with the previous outcome and reporter), `round_closed` (with the tables left without a result).
+- **Results:** only a player seated at a table can report it (`reportPermission` in `src/core/report.ts`, the player from the device cookie), while the round is open and until the admin sets it. The write repeats those conditions in its `WHERE`, so a report racing "Encerrar rodada" or an override changes nothing. A 1v1 stores the games and the outcome from `oneVsOneOutcome`. The admin can set any table of any non-draft round, closed ones included; that marks it `overridden` and clears `reported_by`. Closing a round is manual (players can fix a report until then) and unlocks the next round or, after the last, "Encerrar evento".
 - **Rounds:** generating, re-rolling, swapping and publishing each write in one `db.batch` (a transaction on Neon HTTP), so a round is never half written. A round stays `draft` until the admin publishes it; drops and late joins count from the latest non-draft round, and a draft whose players no longer match the active list must be re-rolled before it can be published.

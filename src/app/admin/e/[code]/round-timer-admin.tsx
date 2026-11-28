@@ -3,9 +3,8 @@
 import { useActionState } from "react";
 
 import { OfflineBadge, RoundClock } from "@/components/round-clock";
-import type { EventState } from "@/core/event-state";
+import type { LiveRound } from "@/core/event-state";
 import { allowedTimerActions, type TimerAction } from "@/core/timer";
-import { useEventState, useServerNow } from "@/lib/use-event-state";
 
 import { roundTimerAction, type RoundAdminState } from "./round-actions";
 
@@ -16,11 +15,23 @@ const buttons: { action: TimerAction; label: string; className: string }[] = [
   { action: "add5", label: "+5 min", className: "btn-outline" },
 ];
 
-/** The live clock of the published round and its controls. Rendered only for the admin. */
-export function RoundTimerAdmin({ code, initial }: { code: string; initial: EventState }) {
-  const { state, offsetMs, offline, refresh } = useEventState(code, initial);
-  const snapshot = state ?? initial;
-  const now = useServerNow(offsetMs, snapshot.now);
+/**
+ * The live clock of the published round and its controls. Rendered only for the admin, inside
+ * `LiveRoundAdmin`, which owns the poll.
+ */
+export function RoundTimerAdmin({
+  code,
+  round,
+  now,
+  offline,
+  refresh,
+}: {
+  code: string;
+  round: LiveRound;
+  now: number;
+  offline: boolean;
+  refresh: () => Promise<void>;
+}) {
   const [result, formAction, pending] = useActionState(
     async (prev: RoundAdminState, formData: FormData) => {
       const next = await roundTimerAction(code, prev, formData);
@@ -30,8 +41,7 @@ export function RoundTimerAdmin({ code, initial }: { code: string; initial: Even
     {}
   );
 
-  const round = snapshot.round;
-  if (!round || round.status === "closed") return null;
+  if (round.status === "closed") return null;
   const allowed = new Set(allowedTimerActions(round, now));
 
   return (

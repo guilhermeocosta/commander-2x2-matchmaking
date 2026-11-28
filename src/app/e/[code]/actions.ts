@@ -5,10 +5,19 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { dropAfterRound } from "@/core/players";
+import {
+  reportPermission,
+  resolveResult,
+  resultFormFields,
+  resultFormSchema,
+  type ReportBlock,
+} from "@/core/report";
 import { rosterIdSchema } from "@/core/roster";
 import {
   getEventByCode,
   getLatestPairedRoundNumber,
+  getLiveRound,
+  reportTableResult,
   swapDeviceTokenHash,
   updateEventPlayer,
 } from "@/db/queries";
@@ -17,9 +26,10 @@ import { getCurrentPlayer, setDeviceCookie } from "@/lib/player-session";
 import { addPlayer, audit, findRosterEntry, GENERIC_ERROR, ROSTER_UNKNOWN } from "@/lib/players";
 import { getRoster } from "@/lib/roster";
 
-/** State shown by the player forms; `error` is pt-BR copy and never includes internals. */
+/** State shown by the player forms; `error` and `ok` are pt-BR copy, never internals. */
 export interface PlayerFormState {
   error?: string;
+  ok?: string;
 }
 
 const EVENT_NOT_FOUND = "Evento não encontrado.";
@@ -156,4 +166,78 @@ export async function claimLinkAction(
     payload: { playerId },
   });
   redirect(`/e/${event.code}`);
+}
+
+const reportBlockMessages: Record<ReportBlock, string> = {
+  "round-not-open": "A rodada já foi encerrada. Fale com a organização para mudar o resultado.",
+  "not-seated": "Você só pode reportar o resultado da sua mesa.",
+  bye: "O bye não tem resultado para reportar.",
+  "wrong-kind": "A página está desatualizada. Recarregue e tente de novo.",
+  overridden: "A organização já definiu o resultado desta mesa. Fale com ela para mudar.",
+};
+
+/**
+ * A player reports their table's result. Who reports comes from the device cookie, never the
+ * form, and only a player seated at that table may report it, while the round is open.
+ */
+export async function reportResultAction(
+  code: string,
+  _prev: PlayerFormState,
+  formData: FormData
+): Promise<PlayerFormState> {
+  const event = await getEventByCode(code);
+  if (!event) return { error: EVENT_NOT_FOUND };
+  const player = await getCurrentPlayer(event);
+  if (!player) return { error: "Este aparelho não está inscrito no evento." };
+
+  const parsed = resultFormSchema.safeParse(resultFormFields(formData));
+  if (!parsed.success) return { error: "Escolha um resultado válido." };
+  const input = parsed.data;
+
+  try {
+    const round = await getLiveRound(event.id);
+    if (!round || round.number !== input.round) {
+      return { error: "A página está desatualizada. Recarregue e tente de novo." };
+    }
+    const permission = reportPermission({
+      roundStatus: round.status,
+      tables: round.tables,
+      tableNumber: input.table,
+      playerId: player.id,
+      kind: input.kind,
+    });
+    if (!permission.ok) return { error: reportBlockMessages[permission.block] };
+
+    const result = resolveResult(input);
+    const previous = round.tables.find((t) => t.number === input.table);
+    const stored = await reportTableResult({
+      eventId: event.id,
+      roundId: round.id,
+      tableNumber: input.table,
+      playerId: player.id,
+      result,
+    });
+    // The round closed or the admin set the result in the meantime.
+    if (!stored) {
+      return {
+        error:
+          "Não deu para salvar: a rodada foi encerrada ou a organização já definiu o resultado.",
+      };
+    }
+    await audit({
+      eventId: event.id,
+      actor: `player:${player.id}`,
+      action: "result_reported",
+      payload: {
+        roundId: round.id,
+        round: round.number,
+        table: input.table,
+        ...result,
+        previousOutcome: previous?.outcome ?? null,
+      },
+    });
+  } catch {
+    return { error: GENERIC_ERROR };
+  }
+  return { ok: "Resultado registrado." };
 }

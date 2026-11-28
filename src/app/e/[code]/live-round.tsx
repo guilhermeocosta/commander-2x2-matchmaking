@@ -1,21 +1,42 @@
 "use client";
 
+import { useState } from "react";
+
 import { OfflineBadge, RoundClock } from "@/components/round-clock";
+import { StandingsTable } from "@/components/standings-table";
+import type { EventStandings } from "@/core/event-standings";
 import { mySeatView, type EventState, type LiveRound } from "@/core/event-state";
 import { timerView } from "@/core/timer";
 import { overtimeMessage, seatLabel, tableTitle, turnOrder } from "@/lib/round-copy";
 import { useEventState, useServerNow } from "@/lib/use-event-state";
+import { useStandings } from "@/lib/use-standings";
 
 import { DropButton } from "./drop-button";
+import { ReportResult } from "./report-result";
 
 const teamBadge = { A: "badge-primary", B: "badge-info" } as const;
 
 /** The joined player's live card: their seat and the timer, or what they're waiting for. */
-export function LiveRoundCard({ code, initial }: { code: string; initial: EventState }) {
+export function LiveRoundCard({
+  code,
+  initial,
+  initialStandings,
+}: {
+  code: string;
+  initial: EventState;
+  initialStandings: EventStandings | null;
+}) {
   const { state, offsetMs, offline, refresh } = useEventState(code, initial);
   const now = useServerNow(offsetMs, (state ?? initial).now);
   const snapshot = state ?? initial;
   const { me, round, event } = snapshot;
+  const [tab, setTab] = useState<"round" | "standings">("round");
+  // Standings change when a round closes: refetch then.
+  const standings = useStandings(
+    code,
+    `${round?.number ?? 0}:${round?.status === "closed"}:${event.status}`,
+    initialStandings
+  );
 
   if (!me) {
     return (
@@ -35,13 +56,42 @@ export function LiveRoundCard({ code, initial }: { code: string; initial: EventS
         <OfflineBadge offline={offline} />
       </div>
 
-      {me.dropped ? (
+      <div role="tablist" className="tabs-box tabs w-full">
+        {(
+          [
+            ["round", "Rodada"],
+            ["standings", "Classificação"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={`tab flex-1 ${tab === id ? "tab-active" : ""}`}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "standings" ? (
+        <StandingsTable standings={standings} highlight={me.name} />
+      ) : me.dropped ? (
         <div role="status" className="alert alert-warning alert-soft">
           Você saiu do evento. Para voltar, fale com a organização.
         </div>
       ) : (
         <>
-          <RoundBody snapshot={snapshot} round={round} now={now} />
+          <RoundBody
+            code={code}
+            snapshot={snapshot}
+            round={round}
+            now={now}
+            refresh={refresh}
+            showStandings={() => setTab("standings")}
+          />
           {event.status !== "finished" && <DropButton code={code} onDone={refresh} />}
         </>
       )}
@@ -50,13 +100,19 @@ export function LiveRoundCard({ code, initial }: { code: string; initial: EventS
 }
 
 function RoundBody({
+  code,
   snapshot,
   round,
   now,
+  refresh,
+  showStandings,
 }: {
+  code: string;
   snapshot: EventState;
   round: LiveRound | null;
   now: number;
+  refresh: () => Promise<void>;
+  showStandings: () => void;
 }) {
   const { me, event } = snapshot;
   if (!me) return null;
@@ -71,6 +127,11 @@ function RoundBody({
       <div role="status" className="rounded-box bg-base-100 p-4 text-center">
         <p className="font-semibold">{round ? `Rodada ${round.number} encerrada` : "Aguarde"}</p>
         <p className="text-base-content/70">{message}</p>
+        {round && (
+          <button type="button" className="btn btn-primary btn-sm mt-3" onClick={showStandings}>
+            Ver classificação
+          </button>
+        )}
       </div>
     );
   }
@@ -148,6 +209,14 @@ function RoundBody({
               <p className="text-xs text-base-content/60">Ordem dos turnos: A1, B1, A2, B2.</p>
             )}
           </div>
+          <ReportResult
+            code={code}
+            round={round.number}
+            table={view.table}
+            myTeam={view.seat.team}
+            open
+            onDone={refresh}
+          />
         </>
       )}
     </div>

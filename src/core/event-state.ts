@@ -3,9 +3,10 @@
  * pages poll. Plain JSON. Public data only (event, the current published round, display names at
  * its tables), plus the caller's own seat when their device cookie matches a player.
  */
+import { resultStatus, type ResultStatus } from "./report.ts";
 import type { EventStatus } from "./rounds.ts";
 import { liveStatus, type TimerFields } from "./timer.ts";
-import type { SeatPosition, TableKind, Team } from "./types.ts";
+import type { OneVsOneGames, Outcome, SeatPosition, TableKind, Team } from "./types.ts";
 
 export interface LiveSeat {
   team: Team;
@@ -13,11 +14,23 @@ export interface LiveSeat {
   name: string;
 }
 
+/** A table's result as shown to everyone. Results are public at the store anyway. */
+export interface LiveResult {
+  status: ResultStatus;
+  outcome: Outcome | null;
+  /** 1v1 only, when reported with games. */
+  games: OneVsOneGames | null;
+  /** Display name of the seated player who reported; null when unreported or set by the admin. */
+  reportedBy: string | null;
+}
+
 export interface LiveTable {
   number: number;
   kind: TableKind;
   /** Sorted A1, A2, B1, B2. */
   seats: LiveSeat[];
+  /** Null for a bye. */
+  result: LiveResult | null;
 }
 
 export interface LiveRound extends TimerFields {
@@ -49,7 +62,27 @@ export interface StoredLiveRound extends TimerFields {
     number: number;
     kind: TableKind;
     seats: { playerId: string; name: string; team: Team; position: SeatPosition }[];
+    outcome: Outcome | null;
+    gamesA: number | null;
+    gamesB: number | null;
+    /** Player id of the reporter. */
+    reportedBy: string | null;
+    overridden: boolean;
   }[];
+}
+
+function liveResult(table: StoredLiveRound["tables"][number]): LiveResult | null {
+  if (table.kind === "bye") return null;
+  const reporter = table.seats.find((s) => s.playerId === table.reportedBy);
+  return {
+    status: resultStatus(table),
+    outcome: table.outcome,
+    games:
+      table.kind === "1v1" && table.gamesA !== null && table.gamesB !== null
+        ? { a: table.gamesA, b: table.gamesB }
+        : null,
+    reportedBy: reporter?.name ?? null,
+  };
 }
 
 const seatOrder = (a: LiveSeat, b: LiveSeat) =>
@@ -93,6 +126,7 @@ export function buildEventState(input: {
           return { team: s.team, position: s.position, name: s.name };
         })
         .sort(seatOrder),
+      result: liveResult(t),
     })),
   };
 

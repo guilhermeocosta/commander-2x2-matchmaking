@@ -4,20 +4,34 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import {
+  canOverride,
+  isRoundOpen,
+  leftMidGameResult,
+  resolveResult,
+  resultFormFields,
+  resultFormSchema,
+  tablesMissingResults,
+  type StoredResult,
+} from "@/core/report";
 import { planRound, swapPlayers } from "@/core/rounds";
 import { applyTimerAction, elapsedMs, type TimerAction } from "@/core/timer";
 import {
+  closeRound,
   finishEvent,
   getEventByCode,
   getLatestRound,
   getRoundRecords,
+  getRoundState,
   insertDraftRound,
   isUniqueViolation,
   newSeed,
+  overrideTableResult,
   publishRound,
   replaceDraftTables,
   toTimerFields,
   updateRoundTimer,
+  type RoundTable,
 } from "@/db/queries";
 import type { EventRow } from "@/db/schema";
 import { isAdmin, LOGIN_PATH } from "@/lib/auth";
@@ -296,4 +310,159 @@ export async function roundTimerAction(
   }
   refresh();
   return {};
+}
+
+// ---------------------------------------------------------------------------------------------
+// Results and closing
+
+const NO_RESULT_HERE = "Essa mesa não aceita resultado. Recarregue a página.";
+
+/** Writes an admin result for one table of `round` and audits it. */
+async function setResult(
+  event: EventRow,
+  round: number,
+  tableNumber: number,
+  check: (
+    table: RoundTable
+  ) => { result: StoredResult; payload: Record<string, unknown> } | { error: string },
+  action: string
+): Promise<RoundAdminState | undefined> {
+  const state = await getRoundState(event.id, round);
+  if (!state || !canOverride(state.round.status)) return { error: STALE_PAGE };
+  const table = state.tables.find((t) => t.row.number === tableNumber);
+  if (!table || table.row.kind === "bye") return { error: NO_RESULT_HERE };
+  const checked = check(table);
+  if ("error" in checked) return { error: checked.error };
+  const ok = await overrideTableResult({
+    eventId: event.id,
+    roundId: state.round.id,
+    tableNumber,
+    result: checked.result,
+  });
+  if (!ok) return { error: STALE_PAGE };
+  await audit({
+    eventId: event.id,
+    actor: "admin",
+    action,
+    payload: {
+      roundId: state.round.id,
+      round,
+      table: tableNumber,
+      ...checked.result,
+      ...checked.payload,
+      previousOutcome: table.row.outcome,
+      previousReportedBy: table.row.reportedBy,
+    },
+  });
+  return undefined;
+}
+
+/** The admin sets (or fixes) a table's result, on an open or closed round. */
+export async function overrideResultAction(
+  code: string,
+  _prev: RoundAdminState,
+  formData: FormData
+): Promise<RoundAdminState> {
+  const event = await adminEvent(code);
+  if (!event) return { error: EVENT_NOT_FOUND };
+  const parsed = resultFormSchema.safeParse(resultFormFields(formData));
+  if (!parsed.success) return { error: "Escolha um resultado válido." };
+  const input = parsed.data;
+
+  try {
+    const failed = await setResult(
+      event,
+      input.round,
+      input.table,
+      (table) =>
+        table.row.kind === input.kind
+          ? { result: resolveResult(input), payload: {} }
+          : { error: STALE_PAGE },
+      "result_overridden"
+    );
+    if (failed) return failed;
+  } catch {
+    return { error: GENERIC_ERROR };
+  }
+  refresh();
+  return { ok: `Resultado da mesa ${input.table} alterado.` };
+}
+
+const playerLeftSchema = z.object({
+  round: roundSchema.shape.round,
+  table: z.coerce.number().int().min(1).max(100),
+  playerId: z.uuid(),
+});
+
+/** "Jogador saiu no meio do jogo": the leaver's team loses that table. */
+export async function playerLeftAction(
+  code: string,
+  _prev: RoundAdminState,
+  formData: FormData
+): Promise<RoundAdminState> {
+  const event = await adminEvent(code);
+  if (!event) return { error: EVENT_NOT_FOUND };
+  const parsed = playerLeftSchema.safeParse({
+    round: formData.get("round"),
+    table: formData.get("table"),
+    playerId: formData.get("playerId"),
+  });
+  if (!parsed.success) return { error: "Escolha quem saiu." };
+  const { round, table: tableNumber, playerId } = parsed.data;
+
+  try {
+    const failed = await setResult(
+      event,
+      round,
+      tableNumber,
+      (table) => {
+        const seat = table.record.seats.find((s) => s.playerId === playerId);
+        if (!seat) return { error: "Esse jogador não está nesta mesa." };
+        return { result: leftMidGameResult(seat.team), payload: { leftPlayerId: playerId } };
+      },
+      "result_player_left"
+    );
+    if (failed) return failed;
+  } catch {
+    return { error: GENERIC_ERROR };
+  }
+  refresh();
+  return { ok: `Mesa ${tableNumber}: vitória da outra dupla registrada.` };
+}
+
+/** "Encerrar rodada": closes the latest round, even with tables still missing a result. */
+export async function closeRoundAction(
+  code: string,
+  _prev: RoundAdminState,
+  formData: FormData
+): Promise<RoundAdminState> {
+  const event = await adminEvent(code);
+  if (!event) return { error: EVENT_NOT_FOUND };
+  const round = parseRound(formData);
+  if (round === undefined) return { error: GENERIC_ERROR };
+
+  try {
+    const state = await getRoundState(event.id, round);
+    const latest = await getLatestRound(event.id);
+    if (!state || latest?.id !== state.round.id || !isRoundOpen(state.round.status)) {
+      return { error: STALE_PAGE };
+    }
+    const missing = tablesMissingResults(state.tables.map((t) => t.row)).map((t) => t.number);
+    if (!(await closeRound(event.id, state.round.id))) return { error: STALE_PAGE };
+    await audit({
+      eventId: event.id,
+      actor: "admin",
+      action: "round_closed",
+      payload: { roundId: state.round.id, round, tablesWithoutResult: missing },
+    });
+  } catch {
+    return { error: GENERIC_ERROR };
+  }
+  refresh();
+  return {
+    ok:
+      round < event.rounds
+        ? `Rodada ${round} encerrada. Já dá para gerar a rodada ${round + 1}.`
+        : `Rodada ${round} encerrada. Já dá para encerrar o evento.`,
+  };
 }

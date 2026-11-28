@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { resultStatus } from "@/core/report";
+import { getRoundState, type RoundState } from "@/db/queries";
 import type { EventRow } from "@/db/schema";
 import { loadEventState } from "@/lib/event-state";
 import { loadRoundsContext, type CurrentRound } from "@/lib/rounds";
@@ -12,8 +14,9 @@ import {
   turnOrder,
   warningMessage,
 } from "@/lib/round-copy";
+import { LiveRoundAdmin } from "./live-round-admin";
+import { ResultsGrid, type ResultTableView } from "./results-admin";
 import { RoundTables, type TableView } from "./round-tables";
-import { RoundTimerAdmin } from "./round-timer-admin";
 import {
   DraftActions,
   FinishEventButton,
@@ -41,6 +44,36 @@ export function tableViews(current: CurrentRound, name: (id: string) => string):
   }));
 }
 
+/** A stored round's tables for the admin results grid, reporter names resolved. */
+export function resultTableViews(
+  state: RoundState,
+  name: (id: string) => string
+): ResultTableView[] {
+  return state.tables.map(({ row, record }) => ({
+    number: row.number,
+    kind: row.kind,
+    seats: record.seats.map((s) => ({ ...s, name: name(s.playerId) })),
+    result:
+      row.kind === "bye"
+        ? null
+        : {
+            status: resultStatus(row),
+            outcome: row.outcome,
+            games: record.games ?? null,
+            reportedBy: row.reportedBy ? name(row.reportedBy) : null,
+          },
+  }));
+}
+
+/** "table:A1" → player id, for the live grid (the public snapshot carries names only). */
+function seatIdMap(state: RoundState): Record<string, string> {
+  return Object.fromEntries(
+    state.tables.flatMap(({ row, record }) =>
+      record.seats.map((s) => [`${row.number}:${seatLabel(s)}`, s.playerId])
+    )
+  );
+}
+
 /** The "Rodadas" section of the admin event panel. Rendered only after `requireAdmin()`. */
 export async function RoundsSection({ event }: { event: EventRow }) {
   const [ctx, live] = await Promise.all([loadRoundsContext(event), loadEventState(event)]);
@@ -48,6 +81,14 @@ export async function RoundsSection({ event }: { event: EventRow }) {
   const { current, gate } = ctx;
   const round = current?.state.round;
   const isDraft = round?.status === "draft";
+  // Earlier rounds, all closed by then: their results can still be fixed.
+  const earlier = (
+    await Promise.all(
+      Array.from({ length: Math.max(0, (round?.number ?? 1) - 1) }, (_, i) =>
+        getRoundState(event.id, i + 1)
+      )
+    )
+  ).filter((s): s is RoundState => s !== undefined && s.round.status !== "draft");
 
   // Hide the button when it can never apply (draft under review, last round done, finished).
   const showGenerate =
@@ -121,11 +162,11 @@ export async function RoundsSection({ event }: { event: EventRow }) {
               </div>
             )}
 
-            {!isDraft && live.round?.number === round.number && (
-              <RoundTimerAdmin code={event.code} initial={live} />
+            {!isDraft && live.round?.number === round.number ? (
+              <LiveRoundAdmin code={event.code} initial={live} seatIds={seatIdMap(current.state)} />
+            ) : (
+              <RoundTables tables={tableViews(current, name)} />
             )}
-
-            <RoundTables tables={tableViews(current, name)} />
 
             {isDraft && (
               <>
@@ -162,6 +203,25 @@ export async function RoundsSection({ event }: { event: EventRow }) {
         )}
 
         <FinishEventButton code={event.code} enabled={ctx.canFinish} hint={finishHint} />
+
+        {earlier.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {[...earlier].reverse().map((state) => (
+              <details key={state.round.id} className="collapse-arrow collapse bg-base-100">
+                <summary className="collapse-title font-medium">
+                  Resultados da rodada {state.round.number}
+                </summary>
+                <div className="collapse-content">
+                  <ResultsGrid
+                    code={event.code}
+                    round={state.round.number}
+                    tables={resultTableViews(state, name)}
+                  />
+                </div>
+              </details>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

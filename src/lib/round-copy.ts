@@ -1,6 +1,7 @@
+import type { ResultStatus } from "@/core/report";
 import type { GenerateBlock, RoundStatus, RoundWarning } from "@/core/rounds";
 import { extraTurns } from "@/core/timer";
-import type { Seat, TableKind } from "@/core/types";
+import type { OneVsOneGames, Outcome, Seat, TableKind, Team } from "@/core/types";
 
 /** pt-BR copy for rounds, shared by the admin panel, the print page and the live views. */
 
@@ -69,4 +70,37 @@ export function pointsLabel(points: number): string {
 export function overtimeMessage(kind: TableKind): string | null {
   const turns = extraTurns(kind);
   return turns === null ? null : `Turno atual + ${turns} turnos extras`;
+}
+
+export const resultStatusLabels: Record<ResultStatus, string> = {
+  none: "Sem resultado",
+  reported: "Reportado",
+  overridden: "Alterado pelo admin",
+};
+
+export const resultStatusBadge: Record<ResultStatus, string> = {
+  none: "badge-ghost",
+  reported: "badge-success",
+  overridden: "badge-warning",
+};
+
+/** "2–1". */
+export function gamesLabel(games: OneVsOneGames): string {
+  return `${games.a}–${games.b}`;
+}
+
+/**
+ * A table's result in a few words: "Dupla A venceu", "Empate"; at the 1v1 the winner's name
+ * (from `names`) and the games, e.g. "Eva venceu · 2–1".
+ */
+export function outcomeLabel(
+  kind: TableKind,
+  outcome: Outcome,
+  games: OneVsOneGames | null = null,
+  names?: Partial<Record<Team, string>>
+): string {
+  const score = games ? ` · ${gamesLabel(games)}` : "";
+  if (outcome === "draw") return `Empate${score}`;
+  if (kind === "1v1") return `${names?.[outcome] ?? `Jogador ${outcome}`} venceu${score}`;
+  return `Dupla ${outcome} venceu`;
 }

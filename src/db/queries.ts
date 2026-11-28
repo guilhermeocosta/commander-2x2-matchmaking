@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { generateEventCode } from "../core/event-code.ts";
 import type { StoredLiveRound } from "../core/event-state.ts";
+import { OPEN_ROUND_STATUSES, type StoredResult } from "../core/report.ts";
 import type { TimerFields } from "../core/timer.ts";
 import type { RoundRecord, TableRecord } from "../core/types.ts";
 import { getDb } from "./index.ts";
@@ -481,7 +482,16 @@ export async function getLiveRound(
   if (!round) return undefined;
   const [tableRows, seatRows] = await db.batch([
     db
-      .select({ id: tables.id, number: tables.number, kind: tables.kind })
+      .select({
+        id: tables.id,
+        number: tables.number,
+        kind: tables.kind,
+        outcome: tables.outcome,
+        gamesA: tables.gamesA,
+        gamesB: tables.gamesB,
+        reportedBy: tables.reportedBy,
+        overridden: tables.overridden,
+      })
       .from(tables)
       .where(eq(tables.roundId, round.id))
       .orderBy(asc(tables.number)),
@@ -504,6 +514,11 @@ export async function getLiveRound(
     tables: tableRows.map((t) => ({
       number: t.number,
       kind: t.kind,
+      outcome: t.outcome,
+      gamesA: t.gamesA,
+      gamesB: t.gamesB,
+      reportedBy: t.reportedBy,
+      overridden: t.overridden,
       seats: seatRows
         .filter((s) => s.tableId === t.id)
         .map((s) => ({
@@ -590,6 +605,112 @@ export async function markRoundOvertime(roundId: string, prev: TimerFields): Pro
     )
     .returning({ id: rounds.id });
   return rows.length > 0;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Results and closing
+
+/** A round of `eventId` whose status is one of `statuses`, as a subquery on its id. */
+function roundIdsWithStatus(
+  eventId: string,
+  roundId: string,
+  statuses: readonly RoundRow["status"][]
+) {
+  return getDb()
+    .select({ id: rounds.id })
+    .from(rounds)
+    .where(
+      and(
+        eq(rounds.id, roundId),
+        eq(rounds.eventId, eventId),
+        inArray(rounds.status, [...statuses])
+      )
+    );
+}
+
+/**
+ * A player's report for table `tableNumber` of round `roundId`. Lands only while the round is
+ * open and the admin hasn't set the result, in the same statement, so a report racing "Encerrar
+ * rodada" or an override changes nothing. The caller checks the player sits at the table.
+ */
+export async function reportTableResult(input: {
+  eventId: string;
+  roundId: string;
+  tableNumber: number;
+  playerId: string;
+  result: StoredResult;
+}): Promise<boolean> {
+  const { eventId, roundId, tableNumber, playerId, result } = input;
+  const rows = await getDb()
+    .update(tables)
+    .set({ ...result, reportedBy: playerId, reportedAt: new Date() })
+    .where(
+      and(
+        eq(tables.roundId, roundId),
+        eq(tables.number, tableNumber),
+        ne(tables.kind, "bye"),
+        eq(tables.overridden, false),
+        inArray(tables.roundId, roundIdsWithStatus(eventId, roundId, OPEN_ROUND_STATUSES))
+      )
+    )
+    .returning({ id: tables.id });
+  return rows.length > 0;
+}
+
+/**
+ * The admin sets a table's result, on any round past `draft` (closed ones included). Marks it
+ * overridden, so players can no longer change it, and clears the reporter.
+ */
+export async function overrideTableResult(input: {
+  eventId: string;
+  roundId: string;
+  tableNumber: number;
+  result: StoredResult;
+}): Promise<boolean> {
+  const { eventId, roundId, tableNumber, result } = input;
+  const rows = await getDb()
+    .update(tables)
+    .set({ ...result, reportedBy: null, reportedAt: new Date(), overridden: true })
+    .where(
+      and(
+        eq(tables.roundId, roundId),
+        eq(tables.number, tableNumber),
+        ne(tables.kind, "bye"),
+        inArray(
+          tables.roundId,
+          roundIdsWithStatus(eventId, roundId, [...OPEN_ROUND_STATUSES, "closed"])
+        )
+      )
+    )
+    .returning({ id: tables.id });
+  return rows.length > 0;
+}
+
+/** Open → `closed`. Returns false when the round wasn't open (already closed, or a draft). */
+export async function closeRound(eventId: string, roundId: string): Promise<boolean> {
+  const rows = await getDb()
+    .update(rounds)
+    .set({ status: "closed" })
+    .where(
+      and(
+        eq(rounds.id, roundId),
+        eq(rounds.eventId, eventId),
+        inArray(rounds.status, [...OPEN_ROUND_STATUSES])
+      )
+    )
+    .returning({ id: rounds.id });
+  return rows.length > 0;
+}
+
+/** The number of the latest closed round, or 0. Rounds close in order, so all before it are. */
+export async function getLastClosedRoundNumber(eventId: string): Promise<number> {
+  const [row] = await getDb()
+    .select({ number: rounds.number })
+    .from(rounds)
+    .where(and(eq(rounds.eventId, eventId), eq(rounds.status, "closed")))
+    .orderBy(desc(rounds.number))
+    .limit(1);
+  return row?.number ?? 0;
 }
 
 // ---------------------------------------------------------------------------------------------

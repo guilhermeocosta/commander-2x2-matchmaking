@@ -1,10 +1,15 @@
 "use client";
 
 import { OfflineBadge, RoundClock } from "@/components/round-clock";
+import { omwLabel, recordLabel, type EventStandings } from "@/core/event-standings";
 import type { EventState, LiveTable } from "@/core/event-state";
 import { timerView } from "@/core/timer";
 import { overtimeMessage, seatLabel, tableTitle, turnOrder } from "@/lib/round-copy";
 import { useEventState, useServerNow } from "@/lib/use-event-state";
+import { useStandings } from "@/lib/use-standings";
+
+/** Between rounds the display refreshes the standings this often (admin fixes after closing). */
+const STANDINGS_REFRESH_MS = 30_000;
 
 const teamText = { A: "text-primary", B: "text-info" } as const;
 
@@ -26,12 +31,26 @@ function cardFontSize(n: number): string {
   return `min(${(74 / rows / 8.5).toFixed(2)}vh, ${(100 / cols / 11).toFixed(2)}vw)`;
 }
 
-export function DisplayBoard({ code, initial }: { code: string; initial: EventState }) {
+export function DisplayBoard({
+  code,
+  initial,
+  initialStandings,
+}: {
+  code: string;
+  initial: EventState;
+  initialStandings: EventStandings | null;
+}) {
   const { state, offsetMs, offline } = useEventState(code, initial);
   const snapshot = state ?? initial;
   const now = useServerNow(offsetMs, snapshot.now);
   const { event, round } = snapshot;
   const live = round && round.status !== "closed" ? round : null;
+  const standings = useStandings(
+    code,
+    `${round?.number ?? 0}:${round?.status === "closed"}:${event.status}`,
+    initialStandings,
+    live ? undefined : STANDINGS_REFRESH_MS
+  );
   const overtime = live ? timerView(live, now).overtime : false;
   const kinds = new Set(live?.tables.map((t) => t.kind));
 
@@ -44,7 +63,13 @@ export function DisplayBoard({ code, initial }: { code: string; initial: EventSt
           </p>
           <h1 className="truncate text-[5vh] leading-tight font-bold">{event.name}</h1>
           <p className="text-[3.5vh] text-base-content/70">
-            {live ? `Rodada ${live.number} de ${event.rounds}` : "Entre pelo celular com o código"}
+            {live
+              ? `Rodada ${live.number} de ${event.rounds}`
+              : standings
+                ? event.status === "finished"
+                  ? "Classificação final"
+                  : `Classificação após a rodada ${standings.throughRound} · próxima: rodada ${standings.throughRound + 1}`
+                : "Entre pelo celular com o código"}
           </p>
         </div>
         <div className="flex items-center gap-[2vw]">
@@ -72,6 +97,8 @@ export function DisplayBoard({ code, initial }: { code: string; initial: EventSt
 
       {live ? (
         <TablesGrid tables={live.tables} />
+      ) : standings ? (
+        <StandingsBoard standings={standings} finished={event.status === "finished"} />
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-[2vh] text-center">
           <p className="text-[6vh] font-bold">
@@ -119,5 +146,54 @@ function TablesGrid({ tables }: { tables: readonly LiveTable[] }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+/** The standings on the projector: up to 20 rows per column, two columns past that. */
+function StandingsBoard({ standings, finished }: { standings: EventStandings; finished: boolean }) {
+  const perColumn = standings.rows.length > 20 ? Math.ceil(standings.rows.length / 2) : 20;
+  const columns = [standings.rows.slice(0, perColumn), standings.rows.slice(perColumn)].filter(
+    (c) => c.length > 0
+  );
+  const lines = Math.max(perColumn, 8) + 1;
+  return (
+    <div
+      className="grid min-h-0 flex-1 content-start gap-[3vw]"
+      style={{
+        gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`,
+        fontSize: `min(${(70 / lines).toFixed(2)}vh, ${(columns.length === 1 ? 3 : 1.6).toFixed(2)}vw)`,
+      }}
+      aria-label={finished ? "Classificação final" : "Classificação"}
+    >
+      {columns.map((rows, i) => (
+        <table key={i} className="w-full leading-snug">
+          <thead className="text-base-content/60">
+            <tr>
+              <th className="w-[2.5em] pr-[0.5em] text-right">#</th>
+              <th className="text-left">Jogador</th>
+              <th className="w-[3em] text-right">Pts</th>
+              <th className="w-[5em] text-center">V-E-D</th>
+              <th className="w-[4.5em] text-right">OMW%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.rank} className="even:bg-base-200">
+                <td className="pr-[0.5em] text-right font-mono tabular-nums">{row.rank}</td>
+                <td className="max-w-0 truncate">
+                  {row.name}
+                  {row.dropped && <span className="text-base-content/50"> (saiu)</span>}
+                </td>
+                <td className="text-right font-mono font-bold text-primary tabular-nums">
+                  {row.points}
+                </td>
+                <td className="text-center font-mono tabular-nums">{recordLabel(row)}</td>
+                <td className="text-right font-mono tabular-nums">{omwLabel(row.omw)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ))}
+    </div>
   );
 }
